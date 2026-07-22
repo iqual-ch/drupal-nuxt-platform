@@ -1,0 +1,48 @@
+if [ -n "$PLATFORM_APP_DIR" ]; then
+    export PATH="${PLATFORM_APP_DIR}/node_modules/.bin:$PATH"
+fi
+
+export NUXT_BACKEND_URL="http://$(echo $PLATFORM_RELATIONSHIPS | base64 --decode | jq -r '.drupal[0].host')"
+
+NUXT_REQUEST_URL=$(echo $PLATFORM_ROUTES | base64 --decode | jq -r 'to_entries[] | select (.value.primary == true) | .key')
+NUXT_REQUEST_ROUTE=${NUXT_REQUEST_URL%/}
+export NUXT_REQUEST_HOST=${NUXT_REQUEST_ROUTE#https://}
+export NUXT_PUBLIC_IMAGE_BASE_URL="${NUXT_PUBLIC_IMAGE_BASE_URL:-$NUXT_REQUEST_ROUTE}"
+
+# Set a PS1 for interactive sessions
+if [ -n "$PS1" ] && [ -n "$PLATFORM_PROJECT" ] && [ "$PLATFORM_APPLICATION_NAME" = "frontend" ]; then
+    # Display platform environment and colorize by type
+    if [ -n "$PLATFORM_ENVIRONMENT_TYPE" ] && [ -n "$PLATFORM_ENVIRONMENT" ]; then
+        case "$PLATFORM_ENVIRONMENT_TYPE" in
+            "development")
+            PROMPT_ENV_COLOR="\[\033[37;41m\]"
+            ;;
+            "staging")
+            PROMPT_ENV_COLOR="\[\033[37;44m\]"
+            ;;
+            "production")
+            PROMPT_ENV_COLOR="\[\033[37;42m\]"
+            ;;
+            *)
+            PROMPT_ENV_COLOR="\[\033[49m\]"
+            ;;
+        esac
+        PROMPT_ENV="${PROMPT_ENV_COLOR}[${PLATFORM_ENVIRONMENT}]\[\033[0m\]"
+    fi
+
+    # Use project code name as hostname, fallback to real hostname
+    if [ -n "$PLATFORM_APP_DIR" -a -f "$PLATFORM_APP_DIR"/package.json ] ; then
+        PROJECT_CODE_NAME=$(jq -r '.name' "$PLATFORM_DIR/package.json")
+        PROMPT_HOSTNAME="${PROJECT_CODE_NAME}-${PLATFORM_APPLICATION_NAME}"
+    else
+        PROMPT_HOSTNAME="${HOSTNAME}"
+    fi
+
+    # Generate PS1 prompt
+    PS1="\[\033[01;32m\]${PROMPT_HOSTNAME}\[\033[00m\]${PROMPT_ENV:-}:\[\033[01;34m\]\w\[\033[00m\]\$ "
+
+    alias ll='ls -alF'
+    alias la='ls -A'
+    alias l='ls -CF'
+    alias vim='vim.tiny'
+fi

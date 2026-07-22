@@ -1,0 +1,8 @@
+#!/bin/bash
+
+## Description: Run phpstan inside the web container.
+## Usage: phpstan [args]
+## Example: "ddev phpstan"
+## HostWorkingDir: false
+
+cd /var/www/html/drupal; phpstan "$@"

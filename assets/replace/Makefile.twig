@@ -1,0 +1,333 @@
+# Test for make v3.81 (usually macOS)
+ifeq ($(MAKE_VERSION),3.81)
+    $(error system Make (3.81) is too old and not supported.)
+endif
+
+# Log message styles
+MSG_ERROR:=\033[41m[ error ]\033[0m
+MSG_WARNING:=\033[43m[ warning ]\033[0m
+MSG_SUCCESS:=\033[42m[ success ]\033[0m
+MSG_INFO:=\033[44m[ info ]\033[0m
+
+# Set bash as default shell for all commands
+SHELL:=/bin/bash
+.ONESHELL:
+.SHELLFLAGS:=-e -o pipefail -c
+MAKEFLAGS += --no-print-directory
+
+# Help
+# Automatically generate help from target comments
+.PHONY: help
+help: ## Show this help message
+	@awk 'BEGIN {
+		FS = ":.*##"
+		printf "\033[1mUsage\033[0m: make \033[36m[target]\033[0m\n\n"
+	}
+	/^## / {
+		# Print a heading line, stripping off the leading "## "
+		printf "\n\033[1m%s\033[0m:\n", substr($$0, 4)
+	}
+	/^[0-9A-Za-z_.-]+:.*?##/ {
+		# Print a target line with its description
+		printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2
+	}' $(MAKEFILE_LIST)
+	echo -e "\n\033[1mQuick start\033[0m: make \033[36minstall\033[0m"
+
+
+.DEFAULT_GOAL := help
+
+## Local Dev
+code: ## Launch local dev environment
+	@echo "Starting VS Code local development environment"
+	code .
+
+cli: cli-local ## Attach shell to local environment
+
+cli-local:
+	@ddev ssh
+
+# Legacy
+project: install-safe
+local: install
+db-sync: drupal-db
+fs-sync: drupal-fs
+delete-local: destroy
+
+## Project Installation
+install-safe: git-status install
+
+install: runtime stack ## Install project stack with runtime
+
+new: ## Create new project
+	@echo -e " $(MSG_INFO) Creating new project"
+	$(MAKE) install NEW_PROJECT=true
+
+runtime: ## Start local runtime
+	@echo -e " $(MSG_INFO) Starting DDEV runtimes"
+	ddev start
+	if [ -n "$(DDEV_SNAPSHOT)" ]; then
+		if [ "$(DDEV_SNAPSHOT)" = "latest" ]; then
+			ddev snapshot restore --latest
+		else
+			ddev snapshot restore "$(DDEV_SNAPSHOT)"
+		fi
+	fi
+
+stack: drupal frontend ## Build & deploy both drupal and frontend
+
+drupal: drupal-build drupal-data drupal-deploy ## Build & deploy Drupal locally
+	@echo -e " $(MSG_SUCCESS) Drupal is ready"
+	ddev drush status
+
+drupal-build: ## Build drupal app
+	@echo -e " $(MSG_INFO) Building Drupal app"
+	ddev composer install $(COMPOSER_FLAGS)
+	mkdir -p drupal/files-private
+	mkdir -p drupal/docroot/sites/default/files/translations
+
+drupal-data: drupal-db drupal-fs ## Import drupal data (fs+db)
+
+drupal-db: ## Import drupal database
+	@echo -e " $(MSG_INFO) Importing Drupal database"
+	if [ "$(NEW_PROJECT)" = "true" ]; then
+		echo -e " $(MSG_INFO) Running Drupal site install"
+		ddev drush si --existing-config --yes $(DRUSH_FLAGS)
+		exit 0
+	fi
+	if [ -z "$$(ddev drush status --fields=bootstrap)" ] || [ "$(FORCE)" = "true" ]; then
+		ddev drush sql:sync @spot @self --yes $(DRUSH_FLAGS)
+	else
+		echo -e " $(MSG_WARNING) Existing database detected. Skipping database import. Use \"FORCE=true\" to force import."
+	fi
+
+drupal-fs: ## Import drupal filesystem
+	@echo -e " $(MSG_INFO) Importing Drupal filesystem"
+	if [ "$(FS_PULL)" = "true" ]; then
+		ddev drush rsync @spot:%files @self:%files --yes $(DRUSH_FLAGS)
+	else
+		ddev drush en --yes stage_file_proxy || echo -e " $(MSG_WARNING) \"stage_file_proxy\" is unavailable. Skipping Drupal filesystem."
+	fi
+
+drupal-deploy: ## Run drupal deployment commands
+	@echo -e " $(MSG_INFO) Running Drupal deployment commands"
+	if [ "$(DRUPAL_NO_DEPLOY)" = "true" ]; then
+		echo -e " $(MSG_WARNING) Deployment disabled."
+		exit 0
+	fi
+	ddev drush deploy
+
+frontend: frontend-build frontend-deploy ## Build & deploy frontend app
+
+frontend-build: ## Build frontend app
+	@echo -e " $(MSG_INFO) Building frontend app"
+	if [ "$(NEW_PROJECT)" = "true" ]; then
+		ddev bun install --frozen-lockfile --ignore-scripts
+		echo -e " $(MSG_INFO) Running create frontend command"
+		ddev bun run create-icms
+	fi
+	ddev bun install --frozen-lockfile
+	ddev bun run styles
+
+frontend-deploy: ## Run frontend commands
+	@echo -e " $(MSG_INFO) Running frontend deployment commands"
+	if [ "$(FRONTEND_PREVIEW)" = "true" ]; then
+		$(MAKE) frontend-preview
+	else
+		ddev bun run dev
+	fi
+
+frontend-preview: ## Build & serve the production frontend locally
+	@echo -e " $(MSG_INFO) Building & serving the production frontend"
+	ddev frontend-preview
+	echo -e " $(MSG_SUCCESS) Production frontend is ready"
+
+## Utility
+launch: ## Launch project
+	@ddev launch
+
+login: ## Login to project
+	@ddev launch $$(ddev drush uli)
+
+log: ## Show logs
+	@ddev drush ws --count=25
+	ddev logs --tail=25
+
+stop: ## Stop local runtime
+	@echo -e " $(MSG_INFO) Stopping DDEV runtimes"
+	ddev stop
+
+destroy: ## Destroy local runtime
+	@echo -e " $(MSG_INFO) Destroying DDEV runtimes"
+	ddev delete
+
+## Testing
+test: drupal-test frontend-test ## Run project tests
+
+drupal-test: ## Test Drupal
+	@echo -e " $(MSG_INFO) Testing Drupal"
+	ddev phpunit
+
+drupal-test-list: ## List Drupal tests
+	@echo -e " $(MSG_INFO) Listing Drupal tests"
+	ddev phpunit --list-tests
+
+drupal-test-unit: ## Run Drupal unit tests
+	@echo -e " $(MSG_INFO) Running Drupal unit tests"
+	ddev phpunit --testsuite=unit $(PHPUNIT_FLAGS)
+
+drupal-test-func: ## Run Drupal functional tests
+	@echo -e " $(MSG_INFO) Running functional tests"
+	echo -e " $(MSG_WARNING) Some tests could modify your existing database."
+	ddev phpunit --testsuite=unit,kernel,functional,functional-javascript $(PHPUNIT_FLAGS)
+
+drupal-test-db: ## Run Drupal db tests
+	@echo -e " $(MSG_INFO) Running database tests"
+	echo -e " $(MSG_WARNING) Some tests could modify your existing database."
+	ddev phpunit --testsuite=kernel,functional,existingsite $(PHPUNIT_FLAGS)
+
+drupal-test-browser: ## Run Drupal browser tests
+	@echo -e " $(MSG_INFO) Running browser tests"
+	echo -e " $(MSG_WARNING) Make sure that the chrome tool is installed."
+	echo -e " $(MSG_WARNING) Some tests could modify your existing database."
+	ddev phpunit --testsuite=functional-javascript,existingsite-javascript $(PHPUNIT_FLAGS)
+
+frontend-test: ## Test Frontend
+	@echo -e " $(MSG_INFO) Testing Frontend"
+	ddev bun run test
+
+## Linting
+lint: drupal-validate drupal-analysis drupal-lint frontend-lint ## Lint project
+
+drupal-validate: ## Validate Drupal
+	@echo -e " $(MSG_INFO) Validating composer lock file"
+	ddev composer validate
+
+drupal-analysis: ## Static analysis of Drupal
+	@echo -e " $(MSG_INFO) Static analysis Drupal"
+	ddev phpstan
+
+drupal-lint: ## Lint Drupal
+	@echo -e " $(MSG_INFO) Linting Drupal"
+	REPO_CODE="$$(git ls-tree -d -r $$(git write-tree) --name-only | grep -E '(themes|modules)/custom/[^/]+$$' | paste -s -)"
+	ddev parallel-lint $${REPO_CODE/drupal\//} -e php,module,theme,inc,install,profile $(PARALINT_FLAGS)
+	ddev phpcs
+
+frontend-lint: ## Lint Frontend
+	@echo -e " $(MSG_INFO) Linting Frontend"
+	ddev bun run prettier
+	ddev bun run typecheck
+	ddev bun run lint
+
+## Beautifying
+beauty: drupal-beauty frontend-beauty ## Beautify & fix code in project
+
+drupal-beauty: ## Beautify & fix Drupal
+	@echo -e " $(MSG_INFO) Beautify & fixing Drupal"
+	ddev phpcbf
+
+frontend-beauty: ## Beautify & fix Frontend
+	@echo -e " $(MSG_INFO) Beautify & fixing Frontend"
+	ddev bun run prettier:fix
+
+# Helper Commands
+git-status:
+	@echo -e " $(MSG_INFO) Checking if git is clean"
+	if [ -n "$$(git status --porcelain=v1 2>/dev/null)" ]; then
+		echo -e " $(MSG_ERROR) Git is not clean. Please commit your changes."
+		exit 1
+	fi
+
+## Bundling
+bundle-all: ## Install all ICMS bundles
+	@echo -e " $(MSG_INFO) Installing all available ICMS bundles"
+	bundles=$$(ddev exec "composer suggest iqual/icms_core --list" | grep "iqual/icms_bundle_" | sed 's/iqual\/icms_bundle_//g')
+	for bundle in $$bundles; do
+		$(MAKE) bundle-$$bundle
+	done
+
+bundle-%: ## Install ICMS bundle
+	@echo -e " $(MSG_INFO) Installing ICMS bundle \"$*\""
+	$(MAKE) drupal-bundle-$*
+	$(MAKE) frontend-bundle-$*
+	echo -e " $(MSG_SUCCESS) Bundle \"$*\" installed."
+
+drupal-bundle-%: ## Install Drupal bundle
+	@echo -e " $(MSG_INFO) Installing Drupal bundle \"$*\""
+	DRUPAL_DEFAULT_LANGCODE=$$(ddev drush config:get system.site default_langcode --format=list)
+	ddev drush config:set system.site default_langcode en -y
+	COMPOSER_BUNDLES="iqual/icms_bundle_$*"
+	if [ -n "$$DEFAULT_CONTENT" ] && ddev exec "composer search iqual/icms_bundle_$*_content" | grep -q "iqual/icms_bundle_$*_content"; then
+		COMPOSER_BUNDLES="$$COMPOSER_BUNDLES iqual/icms_bundle_$*_content"
+		DEFAULT_CONTENT_RECIPE=true
+	fi
+	ddev composer require $$COMPOSER_BUNDLES
+	ddev drush updb -y
+	ddev drush recipe ../recipes/icms_bundle_$*
+	if [ -n "$$DEFAULT_CONTENT_RECIPE" ]; then
+		ddev drush recipe ../recipes/icms_bundle_$*_content
+	fi
+	ddev drush config:set system.site default_langcode $$DRUPAL_DEFAULT_LANGCODE -y
+	ddev drush cr
+
+frontend-bundle-%: ## Install Frontend bundle
+	@echo -e " $(MSG_INFO) Installing Frontend bundle \"$*\""
+	$(MAKE) frontend-build
+	ddev bun add "@iqual/nuxt-icms-$*{% if monorepo %}@workspace:*{% endif %}"
+	$(MAKE) frontend-build
+	echo -e " $(MSG_SUCCESS) Frontend bundle \"$*\" installed."
+
+## Maintenance
+update: ## Update project
+	$(MAKE) drupal-update
+	$(MAKE) frontend-update
+
+drupal-update: ## Update Drupal
+	@echo -e " $(MSG_INFO) Updating Drupal"
+	ddev composer update $(COMPOSER_FLAGS)
+	ddev drush cr
+	ddev drush updb $(DRUSH_FLAGS)
+	ddev drush cex $(DRUSH_FLAGS)
+	ddev drush cr
+
+frontend-update: ## Update frontend
+	@echo -e " $(MSG_INFO) Updating Frontend"
+	ddev bun update
+	$(MAKE) frontend-build
+
+upgrade: ## Upgrade project
+	@echo -e " $(MSG_INFO) Upgrading project"
+	if [ -z "$$JSON_INPUT" ]; then
+		echo -e " $(MSG_ERROR) Missing upgrade operations JSON_INPUT."
+		exit 1
+	fi
+	UPGRADE_SCRIPT="./.github/actions/upgrade/upgrader.sh"
+	TEMP_SCRIPT=$$(mktemp)
+	trap "rm -f $$TEMP_SCRIPT" EXIT
+	cp "$$UPGRADE_SCRIPT" "$$TEMP_SCRIPT"
+	RSH="ddev" bash "$$TEMP_SCRIPT"
+
+config-pull: drupal-build ## Pull Drupal configuration
+	@echo -e " $(MSG_INFO) Pulling Drupal configuration"
+	ddev drush config:pull @spot @self --yes $(DRUSH_FLAGS)
+
+scaffold: ## Re-apply project scaffolding
+	@echo -e " $(MSG_INFO) Applying project scaffolding"
+	ddev composer project:scaffold
+
+## Services
+service-elasticsearch: ## Install DDEV Elasticsearch service
+	@echo -e " $(MSG_INFO) Installing DDEV Elasticsearch service"
+	ddev composer config extra.project-scaffold.runtime --json '{"elasticsearch_version": 8}' --merge
+	ddev composer project:scaffold
+	ddev restart
+
+## Tooling
+tool-chrome: ## Install DDEV Chrome extension
+	@if [ "$(REMOVE)" = "true" ]; then
+		ddev add-on remove ddev/ddev-selenium-standalone-chrome || echo -e " $(MSG_WARNING) No existing DDEV Chrome extension to remove."
+	else
+		echo -e " $(MSG_INFO) Installing DDEV Chrome extension"
+		echo -e " $(MSG_WARNING) Extension will be gitignored locally."
+		ddev add-on get ddev/ddev-selenium-standalone-chrome --version 2.1.0
+	fi
+	ddev restart

@@ -1,0 +1,117 @@
+{% if workflows.phpunit %}
+name: PHPUnit functional testing
+
+{% verbatim -%}
+env:
+  DDEV_VERSION: ${{ vars.DDEV_VERSION || 'latest' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      testing-type:
+        description: 'Type of test to run'
+        default: database
+        required: true
+        type: choice
+        options:
+        - database
+        - browser
+  workflow_call:
+    inputs:
+      database-testing:
+        default: true
+        required: true
+        type: boolean
+      browser-testing:
+        default: true
+        required: true
+        type: boolean
+      cache_key:
+        default: "${{ github.sha }}"
+        type: string
+
+concurrency:
+  group: ci-phpunit-functional-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  phpunit-db-tests:
+    name: "Database tests"
+    if: ${{ inputs.database-testing || (inputs.testing-type && inputs.testing-type == 'database') }}
+    runs-on: {% endverbatim %}{{ workflows.runner | default('ubuntu-latest') }}{% verbatim %}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+
+    - name: Install Drupal locally
+      uses: ./.github/actions/install-local
+      with:
+        ssh_key: ${{ secrets.SSH_KEY }}
+        caching: true
+        cache_key: ${{ inputs.cache_key }}
+
+    - name: Run PHPUnit database tests
+      shell: bash
+      run: |
+        make drupal-test-db PHPUNIT_FLAGS="--log-junit TEST-phpunit.xml"
+
+    - name: Publish Test Report
+      uses: mikepenz/action-junit-report@v6
+      if: success() || failure()
+      with:
+        report_paths: '**/TEST-*.xml'
+        check_name: "PHPUnit database report"
+        transformers: '[{"searchValue":"var/www/html/","replaceValue":""}]'
+        annotate_only: true
+
+    - name: Upload HTML output
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: phpunit-db-report
+        path: ./drupal/docroot/sites/simpletest/browser_output
+
+  phpunit-browser-tests:
+    name: "Browser tests"
+    if: ${{ inputs.browser-testing || (inputs.testing-type && inputs.testing-type == 'browser') }}
+    runs-on: {% endverbatim %}{{ workflows.runner | default('ubuntu-latest') }}{% verbatim %}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+
+    - name: Install Drupal locally
+      uses: ./.github/actions/install-local
+      with:
+        ssh_key: ${{ secrets.SSH_KEY }}
+        caching: true
+        cache_key: ${{ inputs.cache_key }}
+
+    - name: Enable Chrome tooling
+      shell: bash
+      run: |
+        make tool-chrome
+
+    - name: Run PHPUnit browser tests
+      shell: bash
+      run: |
+        make drupal-test-browser PHPUNIT_FLAGS="--log-junit TEST-phpunit.xml"
+
+    - name: Publish Test Report
+      uses: mikepenz/action-junit-report@v6
+      if: success() || failure()
+      with:
+        report_paths: '**/TEST-*.xml'
+        check_name: "PHPUnit browser report"
+        transformers: '[{"searchValue":"var/www/html/","replaceValue":""}]'
+        annotate_only: true
+
+    - name: Upload HTML output
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: phpunit-browser-report
+        path: ./drupal/docroot/sites/simpletest/browser_output
+{% endverbatim -%}
+{% endif %}

@@ -1,0 +1,147 @@
+{% if workflows.upgrade %}
+{%- verbatim -%}
+name: Upgrade Drupal Project
+
+env:
+  DDEV_VERSION: ${{ vars.DDEV_VERSION || 'latest' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      token:
+        required: false
+        type: string
+        description: 'Personal Access Token for code write permissions and pull requests created by this workflow to trigger other workflows.'
+      require:
+        required: false
+        type: string
+        description: "Composer require a module or list of modules."
+      remove:
+        required: false
+        type: string
+        description: "Composer remove a module or list of modules."
+      enable:
+        required: false
+        type: string
+        description: "Enable a module or list of modules with Drush."
+      uninstall:
+        required: false
+        type: string
+        description: "Uninstall a module or list of modules with Drush."
+      payload:
+        required: false
+        type: string
+        description: "JSON encoded operation payload for advanced usage. See documentation."
+      labels:
+        required: false
+        type: string
+        description: "Comma-separated list of labels to apply to the pull request."
+      id:
+        required: false
+        type: string
+        description: "Optional identifier (e.g. Jira ID) to distinguish this workflow run in the commit message and pull request title (default: timestamp)."
+      branch:
+        required: false
+        type: string
+        description: "Optional branch name for the pull request (default: misc/upgrade-<timestamp>)."
+
+jobs:
+  upgrade:
+    runs-on: {% endverbatim %}{{ workflows.runner | default('ubuntu-latest') }}{% verbatim %}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+
+    - name: Generate Input
+      shell: bash
+      run: |
+        set -eo pipefail
+
+        if [[ -z '${{ github.event.inputs.payload }}' ]]; then
+          PAYLOAD_ARRAY=()
+          if [[ -n '${{ github.event.inputs.require }}' ]]; then
+            PAYLOAD_ARRAY+=("{\"action\": \"require\", \"data\": \"${{ github.event.inputs.require }}\"}")
+          fi
+          if [[ -n '${{ github.event.inputs.remove }}' ]]; then
+            PAYLOAD_ARRAY+=("{\"action\": \"remove\", \"data\": \"${{ github.event.inputs.remove }}\"}")
+          fi
+          if [[ -n '${{ github.event.inputs.enable }}' ]]; then
+            PAYLOAD_ARRAY+=("{\"action\": \"pm:enable\", \"data\": \"${{ github.event.inputs.enable }}\"}")
+            PAYLOAD_ARRAY+=("{\"action\": \"config:export\"}")
+          fi
+          if [[ -n '${{ github.event.inputs.uninstall }}' ]]; then
+            PAYLOAD_ARRAY+=("{\"action\": \"pm:uninstall\", \"data\": \"${{ github.event.inputs.uninstall }}\"}")
+            PAYLOAD_ARRAY+=("{\"action\": \"config:export\"}")
+          fi
+          JSON_INPUT=$(echo ${PAYLOAD_ARRAY[@]} | jq -s '{"operations": . }' | jq -cr)
+          echo "JSON_INPUT=$JSON_INPUT" >> $GITHUB_ENV
+        else
+          echo "JSON_INPUT=${{ github.event.inputs.payload }}" >> $GITHUB_ENV
+        fi
+
+    - name: Validate JSON Input
+      shell: bash
+      run: |
+        if ! jq -e . >/dev/null 2>&1 <<<"$JSON_INPUT"; then
+          echo "Failed to parse JSON_INPUT. Aborting."
+          jq -e . >/dev/null <<<"$JSON_INPUT"
+          exit 1
+        fi
+
+        JSON_BEAUTIFIED=$(jq -r '.' <<< "$JSON_INPUT")
+        echo "JSON_BEAUTIFIED<<EOF" >> $GITHUB_ENV
+        echo "$JSON_BEAUTIFIED" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+
+    - name: Setup Git
+      shell: bash
+      run: |
+        git config user.name "${{ github.actor }}"
+        git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+    - name: Install Drupal locally
+      uses: ./.github/actions/install-local
+      with:
+        ssh_key: ${{ secrets.SSH_KEY }}
+
+    - name: Run Drupal upgrades script
+      shell: bash
+      env:
+        RSH: "ddev"
+      run: |
+        make upgrade
+        if [ -f .ddev/homeadditions/.ssh/id_rsa ]; then
+          rm .ddev/homeadditions/.ssh/id_rsa
+        fi
+
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v8
+      if: ${{ github.event.inputs.branch != 'main' }}
+      with:
+        token: ${{ github.event.inputs.token || secrets.GITHUB_TOKEN }}
+        commit-message: "${{ github.event.inputs.id && format('{0}: Upgraded Drupal site', github.event.inputs.id) || 'Upgraded Drupal site' }}"
+        title: "${{ github.event.inputs.id && format('{0}: Upgraded Drupal site', github.event.inputs.id) || format('Upgraded Drupal site ({0})', env.EXECUTION_DATE) }}"
+        labels: ${{ github.event.inputs.labels }}
+        body: |
+          Automatically generated Drupal upgrade (${{ env.EXECUTION_DATE }}):
+
+          ## Tasks
+
+          - [x] Ran Drupal upgrade operations (see payload for details)
+          - [x] Website quality assurance after upgrade using visual regression tests
+          - [ ] Synchronize config from live website
+          - [ ] Deploy upgrade to live website
+
+          <details><summary>Upgrade JSON payload</summary>
+
+          ```json
+          ${{ env.JSON_BEAUTIFIED }}
+          ```
+
+          </details>
+
+          Check the logs in the [Github Actions workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for more information about the upgrade.
+        branch: "${{ github.event.inputs.branch || format('misc/upgrade-{0}', env.EXECUTION_DATE) }}"
+{% endverbatim -%}
+{% endif %}

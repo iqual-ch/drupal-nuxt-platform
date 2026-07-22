@@ -1,0 +1,66 @@
+{
+    "name": "iqual/drupal-nuxt-platform",
+    "description": "Project asset package for the iqual internal developer platform's decoupled Drupal + Nuxt integration.",
+    "version": "1.x-dev",
+    "type": "library",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "martinstadelmann",
+            "email": "m.stadelmann@iqual.ch"
+        }
+    ],
+    "require": {
+        "iqual/project-scaffold": "^1.1"
+    },
+    "archive": {
+        "exclude": ["/docs"]
+    },
+    "bin": [
+        "bin/ddev-shim-php",
+        "bin/ddev-shim-phpcbf",
+        "bin/ddev-shim-phpcs",
+        "bin/ddev-shim-phpstan",
+        "bin/ddev-shim-phpunit"
+    ],
+    "extra": {
+        "project-scaffold": {
+            "monorepo": false,
+            "runtime": {
+                "php_version": 8.3,
+                "db_version": 10.11,
+                "node_version": 22,
+                "elasticsearch_version": null,
+                "memcached": true
+            },
+            "workflows": {
+                "update": true,
+                "upgrade": true,
+                "vrt": true,
+                "phpunit": false
+            },
+            "ai": {
+                "agents": true,
+                "claude": true,
+                "copilot": true
+            },
+            "deployment": "platform.sh",
+            "platformsh_config": {
+                "region": "ch-1",
+                "project_id": ""
+            },
+            "drupal_spot": "main-bvxea6i",
+            "routing": {
+                "languages": ["de", "fr", "it", "en"],
+                "extra_drupal_paths": [],
+                "extra_drupal_entities": []
+            },
+            "assets": {
+                "add": "assets/add",
+                "replace": "assets/replace",
+                "merge": "assets/merge",
+                "read": "questions.json"
+            }
+        }
+    }
+}

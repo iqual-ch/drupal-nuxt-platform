@@ -1,0 +1,20 @@
+{% if deployment == "platform.sh" %}
+{% if op.new_file == true %}
+db:
+    type: 'mariadb:{{ runtime.db_version }}'
+    disk: 2048
+
+varnish:
+    type: varnish:7.3
+    relationships:
+        drupal: 'drupal:http'
+        frontend: 'frontend:http'
+    configuration:
+        vcl: !include
+            type: string
+            path: config.vcl
+{% else %}
+db:
+    type: 'mariadb:{{ runtime.db_version }}'
+{% endif %}
+{% endif %}

@@ -1,0 +1,9 @@
+{
+  "prettier.configPath": "./frontend/.prettierrc",
+  "prettier.ignorePath": "./frontend/.prettierignore",
+  "prettier.prettierPath": "./frontend/node_modules/prettier",
+  "prettier.singleAttributePerLine": true,
+  "prettier.singleQuote": true,
+  "prettier.semi": false,
+  "svg.preview.background": "dark-transparent",
+}

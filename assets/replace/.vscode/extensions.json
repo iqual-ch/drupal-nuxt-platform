@@ -1,0 +1,21 @@
+{
+  "recommendations": [
+    "eamodio.gitlens",
+    "bmewburn.vscode-intelephense-client",
+    "damms005.devdb",
+    "DotJoshJohnson.xml",
+    "valeryanm.vscode-phpsab",
+    "michelemelluso.code-beautifier",
+    "neilbrayfield.php-docblocker",
+    "andrewdavidblum.drupal-smart-snippets",
+    "mblode.twig-language-2",
+    "persoderlind.vscode-phpcbf",
+    "xdebug.php-debug",
+    "editorconfig.editorconfig",
+    "redhat.vscode-yaml",
+    "github.copilot-chat",
+    "vue.volar",
+    "bradlc.vscode-tailwindcss"
+  ],
+  "unwantedRecommendations": []
+}

@@ -1,0 +1,44 @@
+# IDE / OS
+.idea
+.DS_Store
+Thumbs.db
+
+# Exports
+*.gz
+*.sql
+*.zip
+
+# Environment files
+.env
+.env.secret*
+.env.local
+
+# Drupal
+files-private
+drupal/docroot/sites/simpletest/*
+drupal/.phpunit.result.cache
+
+# Frontend
+frontend/node_modules
+frontend/.nuxt
+frontend/.output
+frontend/.eslintcache
+
+# DDEV secrets & CI config
+.ddev/homeadditions/.ssh
+.ddev/config.ci.yaml
+.ddev/.env
+/.composer
+
+# DDEV add-ons
+.ddev/addon-metadata/*chrome/manifest.yaml
+.ddev/*-chrome.yaml
+.ddev/*-chrome_extras.yaml
+
+# Playwright (VRT)
+playwright-report/
+playwright-snapshots/
+playwright-tmp/
+
+# Local AI agent settings
+.claude/settings.local.json

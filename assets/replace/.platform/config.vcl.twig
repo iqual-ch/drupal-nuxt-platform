@@ -1,0 +1,310 @@
+{% if deployment == "platform.sh" %}
+{#
+    Routing data — single source for the Drupal/frontend route split.
+    Keep this block identical in .platform/config.vcl.twig (production)
+    and .ddev/nginx_full/nginx-site.conf.twig (local).
+
+    Values are literal path prefixes (no regex); the templates add the
+    language prefix and the ([/?]|$) boundary. Project-specific additions
+    go to extra.project-scaffold.routing.* — see docs/configuration.md.
+#}
+{% set languages = routing.languages|default(['de', 'fr', 'it', 'en']) %}
+{% set drupal_paths = [
+    'admin', 'api-docs', 'api/openai-ckeditor/completion', 'autocomplete',
+    'autologout', 'batch', 'big_pipe', 'block', 'comment', 'contextual',
+    'core', 'cron', 'devel', 'editor', 'entity', 'entity-browser',
+    'entity_reference_autocomplete', 'facets', 'file/progress', 'filter',
+    'geocoder', 'graphql', 'group', 'layout_builder', 'libraries', 'linkit',
+    'machine_name', 'masquerade', 'media', 'media-library', 'message',
+    'modules', 'multi-site', 'paragraphs_blokkli', 'quickedit', 'run-cron',
+    'scheduler', 'session', 'shs-term-data', 'sitemap', 'sites', 'storage',
+    'system', 'tagify_autocomplete', 'tagify_user_list_autocomplete', 'tfa',
+    'themes/contrib', 'themes/custom', 'tmgmt', 'token', 'toolbar',
+    'translate', 'unmasquerade', 'user', 'views', 'webform'
+] %}
+{% set drupal_entities = ['node', 'taxonomy/term', 'product', 'profile', 'file', 'store'] %}
+{% set drupal_operations = ['access', 'add', 'convertbundles', 'delete', 'edit', 'registrations', 'revisions', 'translations', 'variations'] %}
+{% set lang_alt = languages|join('|') %}
+{% set paths_alt = (drupal_paths + routing.extra_drupal_paths|default([]))|sort|join('|') %}
+{% set entities_alt = (drupal_entities + routing.extra_drupal_entities|default([]))|sort|join('|') %}
+{% set ops_alt = drupal_operations|sort|join('|') %}
+import xkey;
+
+acl purge {
+    "localhost";
+    "34.65.236.213";
+    "34.65.152.61";
+    "34.65.244.185";
+    "34.65.197.163";
+    "34.65.144.16";
+    "34.65.72.28";
+}
+
+// Subroutine executed at the beginning of a request
+sub vcl_recv {
+    if (!req.http.X-Forwarded-Host) {
+        set req.http.X-Forwarded-Host = req.http.host;
+    }
+    if (req.http.X-Forwarded-Proto == "https") {
+        set req.http.X-Forwarded-Port = "443";
+        set req.http.X-Forwarded-Ssl = "on";
+    }
+
+    // The Platform.sh router provides the real client IP as X-Client-IP.
+    set req.http.X-Forwarded-For = req.http.X-Client-IP;
+
+    // Ban logic to remove multiple objects from the cache at once.
+    if (req.method == "BAN") {
+        if (!std.ip(req.http.X-Client-IP, "0.0.0.0") ~ purge) {
+            return (synth(403, "Forbidden"));
+        }
+
+        if (req.http.xkey) {
+            // Soft-purge objects using 'xkey'
+            set req.http.n-gone = xkey.softpurge(req.http.xkey);
+            return (synth(200, "Invalidated " + req.http.n-gone + " objects"));
+        }
+        else {
+            // Soft-purge objects using 'http.host'
+            set req.http.n-gone = xkey.softpurge("http:host:" + req.http.host);
+            return (synth(200, "Invalidated " + req.http.n-gone + " objects"));
+        }
+    }
+
+    // Purge logic to remove single objects from the cache
+    if (req.method == "PURGE") {
+        if (!std.ip(req.http.X-Client-IP, "0.0.0.0") ~ purge) {
+            return (synth(403, "Forbidden"));
+        }
+        return (purge);
+    }
+
+    // Handle root URL redirection based on Accept-Language
+    if (req.url == "/") {
+{% for language in languages|slice(1) %}
+        {% if not loop.first %}} else{% endif %}if (req.http.Accept-Language ~ "^{{ language }}") {
+            set req.http.Location = "https://" + req.http.host + "/{{ language }}";
+            return (synth(302));
+{% endfor %}
+{% if languages|length > 1 %}
+        } else {
+            set req.http.Location = "https://" + req.http.host + "/{{ languages|first }}";
+            return (synth(302));
+        }
+{% else %}
+        set req.http.Location = "https://" + req.http.host + "/{{ languages|first }}";
+        return (synth(302));
+{% endif %}
+    }
+
+    // Default backend is 'frontend'
+    set req.backend_hint = frontend.backend();
+
+    // Routes to 'drupal' backend
+    if (req.url ~ "^/sitemap\.xml([?]|$)" ||
+        req.url ~ "^/sites/default/files" ||
+        req.url ~ "^((/({{ lang_alt }}))?/graphql([/?]|$))" ||
+        req.url ~ "^((/({{ lang_alt }}))?/({{ paths_alt }})([/?]|$))" ||
+        req.url ~ "^/(({{ lang_alt }})/)?({{ entities_alt }})/add([/?]|$)" ||
+        req.url ~ "^/(({{ lang_alt }})/)?({{ entities_alt }})/[0-9]+/({{ ops_alt }})([/?]|$)" ||
+        req.url ~ "^((/({{ lang_alt }}))?/drupal-api([/?]|$))"
+    ) {
+        set req.backend_hint = drupal.backend();
+    }
+
+    // Routes to 'frontend' backend for API
+    elseif (req.url ~ "^/api") {
+        set req.backend_hint = frontend.backend();
+    }
+
+    // If a session cookie is present, bypass the cache
+    if (req.http.Cookie ~ "(^|;\s*)(S?SESS[a-zA-Z0-9]*)=") {
+        set req.http.X-Cache-Hint = "BYPASS";
+        return (pass);
+    } else {
+        unset req.http.Cookie;
+    }
+
+    // Only cache GET and HEAD requests w/o authorization
+    if ((req.method != "GET" && req.method != "HEAD") || req.http.Authorization) {
+        set req.http.X-Cache-Hint = "BYPASS";
+        return (pass);
+    }
+
+    // Static assets caching
+    if (req.url ~ "^/__nuxt" ||
+        req.url ~ "^/_nuxt" ||
+        req.url ~ "(favicon|logo-({{ lang_alt }}))" ||
+        req.url ~ "\.(woff|woff2|ttf|otf)$"
+    ) {
+        set req.http.X-Static-File = "true";
+        // @todo Check if cookies can be removed
+        // unset req.http.Cookie;
+        return(hash);
+    }
+
+    // @todo Remove tracking query parameters
+    //if (req.url ~ "(\?|&)(gclid|fbclid|gclsrc|dclid|ds_rl|msclkid|ttclid|gbraid|wbraid|epik|gad_source|srsltid|twclid|utm_source|utm_medium|utm_campaign|utm_content|//utm_term|_ga|_gl|mc_cid|mc_eid|si|igshid)=") {
+    //    // Save the stripped parametes in a header for redirects
+    //    set req.http.X-Orig-Query = regsub(req.url, ".*\?", "");
+
+    //    // Remove query parameters
+    //    set req.url = regsuball(req.url, "&(gclid|fbclid|gclsrc|dclid|ds_rl|msclkid|ttclid|gbraid|wbraid|epik|gad_source|srsltid|twclid|utm_source|utm_medium|//utm_campaign|utm_content|utm_term|_ga|_gl|mc_cid|mc_eid|si|igshid)=([^&]+)", "");
+    //    set req.url = regsuball(req.url, "\?(gclid|fbclid|gclsrc|dclid|ds_rl|msclkid|ttclid|gbraid|wbraid|epik|gad_source|srsltid|twclid|utm_source|utm_medium|//utm_campaign|utm_content|utm_term|_ga|_gl|mc_cid|mc_eid|si|igshid)=([^&]+)", "?");
+    //    set req.url = regsub(req.url, "\?&", "?");
+    //    set req.url = regsub(req.url, "\?$", "");
+    //}
+
+    // Default behavior
+    return (hash);
+}
+
+// Subroutine executed after a backend response is received
+sub vcl_backend_response {
+    // 5xx: never let an error replace stale content
+    if (beresp.status >= 500 && beresp.status < 600) {
+        if (bereq.is_bgfetch) {
+            // Background revalidation failed: keep the stale object,
+            // it will be retried on the next request.
+            return (abandon);
+        }
+        // Nothing usable in cache: hold the error briefly to shield the
+        // backend from a thundering herd. return(deliver) is required so
+        // the no-cache checks below (and the built-in VCL) don't turn
+        // this into a 120s hit-for-miss.
+        set beresp.ttl = 2s;
+        set beresp.grace = 1m;
+        return (deliver);
+    }
+
+    if (beresp.ttl <= 0s ||
+      beresp.http.Set-Cookie ||
+      beresp.http.Surrogate-control ~ "no-store" ||
+      (!beresp.http.Surrogate-Control &&
+        beresp.http.Cache-Control ~ "no-cache|no-store|private") ||
+      beresp.http.Vary == "*") {
+        // Mark as "Hit-For-Miss" for the next 2 minutes
+        set beresp.ttl = 120s;
+        set beresp.uncacheable = true;
+        set beresp.http.X-Varnish-Cache = "BYPASS";
+        return (deliver);
+    }
+
+    // Set caching headers for static assets
+    if (bereq.http.X-Static-File == "true") {
+        set beresp.ttl = 365d;
+    } elseif (bereq.url ~ "^/sites/default/files") {
+        // Mark as "Hit-For-Miss" to stop request coalescing
+        set beresp.ttl = 1h;
+        // Do not store files in memory.
+        set beresp.uncacheable = true;
+        set beresp.http.X-Varnish-Cache = "DYNAMIC";
+    } elseif (bereq.url ~ "^/_ipx/") {
+        // Mark as "Hit-For-Miss" to stop request coalescing
+        set beresp.ttl = 1h;
+        // Do not store files in memory.
+        set beresp.uncacheable = true;
+        set beresp.http.X-Varnish-Cache = "DYNAMIC";
+    }
+
+    // Normalize (Purge-)Cache-Tags to xkey
+    if (beresp.http.Purge-Cache-Tags) {
+        set beresp.http.xkey = beresp.http.Purge-Cache-Tags;
+        unset beresp.http.Purge-Cache-Tags;
+    } elseif (beresp.http.Cache-Tag) {
+        set beresp.http.xkey = beresp.http.Cache-Tag;
+        unset beresp.http.Cache-Tag;
+    }
+
+    // Add http host to xkey
+    if (beresp.http.xkey) {
+        set beresp.http.xkey = "http:host:" + bereq.http.host + " " + beresp.http.xkey;
+    } else {
+        set beresp.http.xkey = "http:host:" + bereq.http.host;
+    }
+
+    // Serve stale while revalidating / during backend outages.
+    if (beresp.ttl > 0s) {
+        set beresp.grace = 15m;
+    }
+}
+
+sub vcl_hit {
+    // If the object is stale but within grace, we suspect a background fetch
+    if (obj.ttl <= 0s && obj.grace > 0s) {
+        set req.http.X-Cache-Hint = "STALE";
+    }
+}
+
+// Subroutine executed before delivering the response to the client
+sub vcl_deliver {
+    // If the backend issued a redirect and we saved original tracking params,
+    // re-append them to the Location header.
+    //if (resp.status >= 300 && resp.status < 400 && resp.http.Location && req.http.X-Orig-Query) {
+    //    if (resp.http.Location ~ "\?") {
+    //        set resp.http.Location = resp.http.Location + "&" + req.http.X-Orig-Query;
+    //    } else {
+    //        set resp.http.Location = resp.http.Location + "?" + req.http.X-Orig-Query;
+    //    }
+    //}
+
+    // @todo Remove sensitive headers
+    // unset resp.http.Age;
+    unset resp.http.Via;
+    unset resp.http.X-Varnish;
+    unset req.http.X-Static-File;
+
+    // Only remove debug headers on production
+    if (req.http.host !~ "\.platformsh\.site$" || req.http.host ~ "{{ drupal_spot }}-") {
+        // Remove CDN headers from frontend
+        unset resp.http.Cdn-Cache-Control;
+        unset resp.http.xkey;
+        unset resp.http.Purge-Cache-Tags;
+
+        // Remove Varnish controls from public Cache-Control
+        if (resp.http.Cache-Control ~ "s-maxage") {
+            set resp.http.Cache-Control = regsub(resp.http.cache-control, "(,\s*s-maxage=[0-9]+\s*$)|(\s*s-maxage=[0-9]+\s*,)", "");
+        }
+        if (resp.http.Cache-Control ~ "stale-while-revalidate") {
+            set resp.http.Cache-Control = regsub(resp.http.cache-control, "(,\s*stale-while-revalidate=[0-9]+\s*$)|(\s*stale-while-revalidate=[0-9]+\s*,)", "");
+        }
+        if (resp.http.Cache-Control ~ "stale-if-error") {
+            set resp.http.Cache-Control = regsub(resp.http.cache-control, "(,\s*stale-if-error=[0-9]+\s*$)|(\s*stale-if-error=[0-9]+\s*,)", "");
+        }
+    }
+
+    if (obj.hits > 0) {
+        if (req.http.X-Cache-Hint == "STALE") {
+            set resp.http.X-Varnish-Cache = "UPDATING";
+        }
+        else {
+            set resp.http.X-Varnish-Cache = "HIT";
+        }
+    }
+    elseif (!resp.http.X-Varnish-Cache) {
+        if (req.http.X-Cache-Hint == "BYPASS") {
+            set resp.http.X-Varnish-Cache = "BYPASS";
+        }
+        else {
+            set resp.http.X-Varnish-Cache = "MISS";
+        }
+    }
+}
+
+// Error handling
+sub vcl_synth {
+    if (resp.status == 302) {
+        set resp.http.Location = req.http.Location;
+        return (deliver);
+    }
+}
+
+// Optional: handle custom error pages (if needed)
+// sub vcl_backend_error {
+//     if (beresp.status >= 400) {
+//         set beresp.http.Content-Type = "text/html; charset=utf-8";
+//         synthetic("<html><body><h1>" + beresp.status + " " + beresp.reason + "</h1></body></html>");
+//         return (deliver);
+//     }
+// }
+{% endif %}

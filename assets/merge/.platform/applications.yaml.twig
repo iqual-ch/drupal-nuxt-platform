@@ -1,0 +1,184 @@
+{% if deployment == "platform.sh" %}
+{% if op.new_file == true %}
+drupal:
+  type: 'php:{{ runtime.php_version }}'
+
+  variables:
+      php:
+          memory_limit: 256M
+          date.timezone: Europe/Zurich
+
+  # Default dependencies
+  dependencies:
+      php:
+          composer/composer: ^2
+
+  # Runtime extensions
+  runtime:
+      extensions:
+          - apcu
+          - memcached
+          - yaml
+          - imagick
+          - imap
+          - xsl
+
+  relationships:
+      database: 'db:mysql'
+
+  # The size of the persistent disk of the application (in MB).
+  disk: 2048
+
+  # The 'mounts' describe writable, persistent filesystem mounts in the application.
+  mounts:
+      # The default Drupal files directory.
+      /docroot/sites/default/files:
+          source: local
+          source_path: files
+      # Drupal gets its own dedicated tmp directory. The settings.platformsh.php
+      # file will automatically configure Drupal to use this directory.
+      /tmp:
+          source: local
+          source_path: tmp
+      # Private file uploads are stored outside the web root. The settings.platformsh.php
+      # file will automatically configure Drupal to use this directory.
+      /private:
+          source: local
+          source_path: private
+      # Drush needs a scratch space for its own caches.
+      /.drush:
+          source: local
+          source_path: drush
+      # Drush will try to save backups to this directory, so it must be
+      # writeable even though you will almost never need to use it.
+      /drush-backups:
+          source: local
+          source_path: drush-backups
+      # Drupal Console will try to save backups to this directory, so it must be
+      # writeable even though you will almost never need to use it.
+      /.console:
+          source: local
+          source_path: console
+
+  # Configuration of the build of this application.
+  build:
+      flavor: composer
+
+  # The hooks executed at various points in the lifecycle of the application.
+  hooks:
+      deploy: |
+          set -e
+          if [ -n "$(drush status --fields=bootstrap)" ] && [ -z "$DRUPAL_NO_DRUSH_DEPLOY" ]; then
+            drush deploy
+          else
+            echo "Drupal not installed. Skipping standard Drupal deploy steps"
+          fi
+
+  # The configuration of app when it is exposed to the web.
+  web:
+      locations:
+          # All requests not otherwise specified follow these rules.
+          /:
+              # The folder from which to serve static assets, for this location.
+              #
+              # This is a filesystem path, relative to the application root.
+              root: docroot
+
+              # How long to allow static assets from this location to be cached.
+              #
+              # Can be a time in seconds, or -1 for no caching. Times can be
+              # suffixed with "s" (seconds), "m" (minutes), "h" (hours), "d"
+              # (days), "w" (weeks), "M" (months, as 30 days) or "y" (years, as
+              # 365 days).
+              expires: 5m
+
+              # Redirect any incoming request to Drupals front controller.
+              passthru: /index.php
+
+              # Deny access to all static files, except those specifically allowed below.
+              allow: false
+
+              # Rules for specific URI patterns.
+              rules:
+                  # Allow access to common static files.
+                  '\.(avif|webp|jpe?g|png|gif|svgz?|css|js|map|ico|bmp|eot|woff2?|otf|ttf)$':
+                      allow: true
+                  ^/robots\.txt$:
+                      allow: true
+                  ^/sitemap\.xml$:
+                      allow: true
+                  '^/[^/]+\.html$':
+                      allow: true
+
+                  # Deny direct access to configuration files.
+                  ^/sites/sites\.php$:
+                      scripts: false
+                  '^/sites/[^/]+/settings.*?\.php$':
+                      scripts: false
+
+          # The files directory has its own special configuration rules.
+          /sites/default/files:
+              # Allow access to all files in the public files directory.
+              allow: true
+              expires: 1h
+              passthru: /index.php
+              root: docroot/sites/default/files
+
+              # Do not execute PHP scripts from the writeable mount.
+              scripts: false
+
+              rules:
+                  # Provide a longer TTL (2 weeks) for aggregated CSS and JS files.
+                  ^/sites/default/files/(css|js):
+                      expires: 2w
+
+  crons:
+      # Run Drupals cron tasks every 5 minutes.
+      drupal:
+          spec: '*/5 * * * *'
+          cmd: 'cd docroot ; drush core-cron'
+
+  source:
+      root: drupal
+
+frontend:
+  type: 'nodejs:{{ runtime.node_version }}'
+
+  variables:
+    env:
+      NODE_ENV: production
+      NUXT_TELEMETRY_DISABLED: 1
+      NODE_OPTIONS: "--max-old-space-size=3072"
+
+  disk: 1024
+
+  relationships:
+    drupal: "drupal:http"
+
+  # override the default nodejs build flavor
+  build:
+    flavor: none
+
+  # use bun to install the dependencies
+  hooks:
+    build: |
+      set -e
+      export PATH="${PLATFORM_APP_DIR}/node_modules/.bin:$PATH"
+      bun install --frozen-lockfile
+      node ./node_modules/@nuxt/cli/bin/nuxi.mjs build
+
+  # In the start command replace node with bun
+  web:
+    commands:
+      start: 'bun .output/server/index.mjs'
+
+  source:
+      root: frontend
+{% else %}
+drupal:
+  type: 'php:{{ runtime.php_version }}'
+
+frontend:
+  type: 'nodejs:{{ runtime.node_version }}'
+{% endif %}
+{% endif %}

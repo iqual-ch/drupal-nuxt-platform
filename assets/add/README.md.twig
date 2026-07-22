@@ -1,0 +1,91 @@
+# {{ title|default(name) }} — iqual CMS Project
+
+{% if (locations['project-root'] ~ '/frontend/public/favicon.ico') is existing_file %}
+<img src="./frontend/public/favicon.ico" align="right" width="48" height="48">
+
+{% endif %}
+Decoupled **Drupal** backend (`drupal/`) + **Nuxt** frontend (`frontend/`), built on the [iqual CMS](https://github.com/iqual-ch/blokkli-starterkit-sw-experiment) platform with the [Blökkli](https://docs.blokk.li/) visual editor. The frontend consumes Drupal via GraphQL. Local development runs entirely inside **DDEV**.
+
+* [Live URL]({{ url }}/)
+* [Local URL](https://{{ name }}.ddev.site/)
+
+## Prerequisites
+
+- **WSL2**: For usage with Windows it is required to use WSL2.
+- **Docker**: Required if you wish to use the integrated development environment.
+- **DDEV**: Make sure you have [ddev](https://ddev.readthedocs.io/) installed on your system.
+- **VS Code**: Recommended for developing code with the provided settings and extensions.
+- **Git Access**: To clone the repository and manage version control.
+
+> [!IMPORTANT]
+> _Make sure to install the right version of DDEV for your system. We recommend DDEV on Windows with WSL2 + Docker Desktop ([docs](https://ddev.readthedocs.io/en/stable/users/install/ddev-installation/#windows)). Additionally it is required to set up SSH authentication in DDEV so Drush can access the remote environment using `ddev auth ssh -f $HOME/.ssh/YOUR_SSH_KEY`._
+
+## Quick Start
+
+1. **Clone** the repository
+2. **Install**: `make install`
+3. **Launch**: `make launch` (to log into the admin backend directly: `make login`)
+
+Everything runs through DDEV — always prefix `composer` / `drush` / `bun` / `npm` with `ddev`. The `Makefile` is the source of truth for build, test, and lint targets.
+
+## Local Development
+
+To start developing locally, launch a Visual Studio Code environment customized for this project by running:
+
+```bash
+make code
+```
+
+### Useful Commands
+
+* `make install`: Install the project with runtime locally.
+   > Use `DDEV_SNAPSHOT=latest` flag to restore the latest `ddev` snapshot.
+* `make stack`: Build & deploy both the Drupal backend and frontend.
+   * `make drupal`: Build & deploy Drupal backend locally. Runs daemonized.
+   * `make frontend`: Build & deploy the frontend application. Runs in foreground.
+* `make update`: Update the project (Composer, Drupal database & config, Bun).
+* `make test`: Run project tests (PHPUnit, Vitest, …).
+* `make lint`: Lint the project (PHPCS, PHPStan, Prettier, …).
+* `make beauty`: Beautify & fix code in project.
+
+> [!TIP]
+> _Run `make help` for a list of all available commands. Some commands are also available as tasks in VS Code._
+
+> [!TIP]
+> _Use `ddev snapshot` to take database snapshots and run `make install DDEV_SNAPSHOT=latest` to re-install from the latest database snapshot._
+
+## Installing Bundles
+
+A default installation only includes core functionality. Additional ICMS features are available as bundles:
+
+```bash
+make bundle-news                        # Install a single bundle
+make bundle-news DEFAULT_CONTENT=true   # With demo content
+make bundle-all                         # Install all available bundles
+```
+
+To list available bundles:
+
+```bash
+composer suggest iqual/icms_core --list
+```
+
+## Project Scaffolding
+
+Project infrastructure files (`Makefile`, `.ddev/`, CI/CD workflows, …) are managed by [`iqual/drupal-nuxt-platform`](https://github.com/iqual-ch/drupal-nuxt-platform) and are updated with the Composer dependencies — do not edit managed files directly. This README was generated once at project creation and is project-owned; extended project-specific documentation belongs in the `./docs` directory. To change the scaffolding configuration use:
+
+```bash
+ddev composer project:init
+```
+
+## Further Documentation
+
+{% if (locations['project-root'] ~ '/docs') is existing_file %}
+* [**Project documentation**](./docs) — project-specific documentation (architecture, runbooks, customizations)
+{% endif %}
+{% if (locations['project-root'] ~ '/AGENTS.md') is existing_file %}
+* [AI agent guide](./AGENTS.md) — conventions, commands, and architecture for AI-assisted changes
+{% endif %}
+* [Drupal Nuxt Platform](https://github.com/iqual-ch/drupal-nuxt-platform#readme) — scaffolding, commands, and configuration reference
+* [iqual CMS Monorepo](https://github.com/iqual-ch/blokkli-starterkit-sw-experiment) — ICMS core & bundle development
+* [DDEV Usage Documentation](https://ddev.readthedocs.io/en/stable/users/usage/)

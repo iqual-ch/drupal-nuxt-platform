@@ -1,0 +1,8 @@
+#!/bin/bash
+
+## Description: Run parallel-lint inside the web container.
+## Usage: parallel-lint [args]
+## Example: "ddev parallel-lint"
+## HostWorkingDir: false
+
+cd /var/www/html/drupal; parallel-lint "$@"

@@ -1,0 +1,8 @@
+#!/bin/bash
+
+## Description: Run phpcs inside the web container.
+## Usage: phpcs [args]
+## Example: "ddev phpcs"
+## HostWorkingDir: false
+
+cd /var/www/html/drupal; phpcs "$@"

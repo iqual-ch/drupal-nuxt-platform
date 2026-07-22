@@ -1,0 +1,9 @@
+max_execution_time = 600
+error_log = /tmp/php_error.log
+xdebug.output_dir = "/var/www/html"
+session.cookie_samesite = Lax
+apc.shm_size = "128M"
+memory_limit = {{ runtime.php_memory_limit|default('512M') }}
+max_input_vars = 10000
+upload_max_filesize = {{ runtime.php_upload_limit|default('100M') }}
+post_max_size = {{ runtime.php_upload_limit|default('100M') }}

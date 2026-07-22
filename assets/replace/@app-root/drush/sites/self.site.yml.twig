@@ -1,0 +1,30 @@
+{% if deployment == "platform.sh" %}
+# Site aliases for the Platform.sh environments.
+# Docs at https://github.com/drush-ops/drush/blob/master/examples/example.site.yml
+
+# Production
+prod:
+  root: /app/docroot
+  user: {{ platformsh_config.project_id }}-{{ drupal_spot }}--drupal
+  host: ssh.{{ platformsh_config.region }}.platform.sh
+  uri: {{ url }}
+
+main:
+  root: /app/docroot
+  user: {{ platformsh_config.project_id }}-{{ drupal_spot }}--drupal
+  host: ssh.{{ platformsh_config.region }}.platform.sh
+  uri: {{ url }}
+
+spot:
+  root: /app/docroot
+  user: {{ platformsh_config.project_id }}-{{ drupal_spot }}--drupal
+  host: ssh.{{ platformsh_config.region }}.platform.sh
+  uri: {{ url }}
+
+# Wildcard for any environment
+'*':
+  root: /app/docroot
+  user: {{ platformsh_config.project_id }}-${env-name}--drupal
+  host: ssh.{{ platformsh_config.region }}.platform.sh
+  uri: https://${env-name}-{{ platformsh_config.project_id }}.{{ platformsh_config.region }}.platformsh.site
+{% endif %}

@@ -1,0 +1,72 @@
+{% if workflows.update %}
+{%- verbatim -%}
+name: Update Project
+
+env:
+  DDEV_VERSION: ${{ vars.DDEV_VERSION || 'latest' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      token:
+        required: false
+        type: string
+        description: 'Personal Access Token for code write permissions and pull requests created by this workflow to trigger other workflows.'
+      labels:
+        required: false
+        type: string
+        description: "Comma-separated list of labels to apply to the pull request."
+      id:
+        required: false
+        type: string
+        description: "Optional identifier (e.g. Jira ID) to distinguish this workflow run in the commit message and pull request title (default: timestamp)."
+      branch:
+        required: false
+        type: string
+        description: "Optional branch name for the pull request (default: misc/update-<timestamp>)."
+jobs:
+  update:
+    runs-on: {% endverbatim %}{{ workflows.runner | default('ubuntu-latest') }}{% verbatim %}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+
+    - name: Install Drupal locally
+      uses: ./.github/actions/install-local
+      with:
+        ssh_key: ${{ secrets.SSH_KEY }}
+
+    - name: Run project updates
+      shell: bash
+      run: |
+        make update COMPOSER_FLAGS=-n DRUSH_FLAGS=-y
+        if [ -f .ddev/homeadditions/.ssh/id_rsa ]; then
+          rm .ddev/homeadditions/.ssh/id_rsa
+        fi
+
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v8
+      if: ${{ github.event.inputs.branch != 'main' }}
+      with:
+        token: ${{ github.event.inputs.token || secrets.GITHUB_TOKEN }}
+        labels: ${{ github.event.inputs.labels }}
+        commit-message: "${{ github.event.inputs.id && format('{0}: Updated project', github.event.inputs.id) || 'Updated project' }}"
+        title: "${{ github.event.inputs.id && format('{0}: Update project', github.event.inputs.id) || format('Update project ({0})', env.EXECUTION_DATE) }}"
+        body: |
+          Automatically generated project update (${{ env.EXECUTION_DATE }}):
+
+          ## Tasks
+
+          - [x] Update vendor packages locally with `composer update`
+          - [x] Update Drupal database locally with `drush updatedb`
+          - [x] Export updated Drupal config with `drush config:export`
+          - [x] Update frontend packages locally with `bun update`
+          - [x] Website quality assurance after update using visual regression tests
+          - [ ] Synchronize config from live website
+          - [ ] Deploy update to live website
+
+          Check the logs in the [Github Actions workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for more information about the update.
+        branch: "${{ github.event.inputs.branch || format('misc/update-{0}', env.EXECUTION_DATE) }}"
+{% endverbatim -%}
+{% endif %}

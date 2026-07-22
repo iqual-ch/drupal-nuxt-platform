@@ -1,0 +1,11 @@
+{% if runtime.elasticsearch_version == 8 %}
+# DDEV Elasticsearch service, managed by iqual/drupal-nuxt-platform.
+# Enable via `extra.project-scaffold.runtime.elasticsearch_version: 8`
+# or by running `make service-elasticsearch`.
+
+services:
+  elasticsearch:
+    image: elasticsearch:8.11.1
+    volumes:
+      - ./elasticsearch/config/elasticsearch8.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+{% endif %}

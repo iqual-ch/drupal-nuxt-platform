@@ -1,0 +1,40 @@
+# Ignore configuration files that may contain sensitive information.
+local.drush.yml
+local.site.yml
+local.services.yml
+local.settings.php
+*.local
+.env
+
+# Ignore Drupal core (created during build).
+docroot/core
+
+# Ignore paths that contain user-generated content.
+docroot/sites/*/files
+docroot/sites/*/private
+/files-private/*
+!/files-private/.gitkeep
+
+# Ignore contrib packages (created during build).
+docroot/modules/contrib
+docroot/themes/contrib
+docroot/profiles/contrib
+docroot/libraries/*
+recipes
+drush/Commands/contrib
+vendor/
+
+# Ignore build artifacts.
+deployment_identifier
+tmp
+reports
+.phpcs-cache
+.phpunit.result.cache
+drush/sites/.checksums
+
+# OS artifacts.
+.DS_Store
+Thumbs.db
+
+# Include compiled frontend libraries.
+!docroot/libraries/icms-blokkli-customization

@@ -1,0 +1,96 @@
+{% if workflows.update or workflows.vrt or workflows.phpunit %}
+{%- verbatim -%}
+name: Install Drupal locally
+description: Checkout, configure, deploy and install a local drupal project
+inputs:
+  ssh_key:
+    required: true
+  caching:
+    required: false
+    default: false
+  cache_key:
+    required: false
+    default: "${{ github.sha }}"
+runs:
+  using: composite
+  steps:
+  - name: Generate dynamic env variables
+    shell: bash
+    run: |
+      echo "EXECUTION_DATE=$(date --rfc-3339=date)" >> $GITHUB_ENV
+
+  - name: Cache Composer dependency
+    id: cache-composer
+    uses: actions/cache@v5
+    with:
+      path: .composer
+      key: ${{ runner.os }}-build-drupal-composer-${{ hashFiles('**/composer.lock') }}
+
+  - name: Cache Drupal database
+    if: ${{ inputs.caching == 'true' }}
+    id: cache-db
+    uses: actions/cache@v5
+    with:
+      path: .ddev/db_snapshots
+      key: ${{ runner.os }}-build-drupal-db-${{ inputs.cache_key }}
+
+  - name: Setup CI DDEV config
+    shell: bash
+    run: |
+      cat <<EOF > .ddev/config.ci.yaml
+      web_environment:
+          - COMPOSER_NO_INTERACTION=1
+          - COMPOSER_DISCARD_CHANGES=1
+          - COMPOSER_FUND=0
+          - COMPOSER_NO_AUDIT=1
+          - COMPOSER_CACHE_DIR=/var/www/html/.composer
+      EOF
+
+  - name: Setup SSH key
+    shell: bash
+    run: |
+      mkdir -p .ddev/homeadditions/.ssh
+      echo "${{ inputs.ssh_key }}" > .ddev/homeadditions/.ssh/id_rsa
+      chmod 700 .ddev/homeadditions/.ssh
+      chmod 600 .ddev/homeadditions/.ssh/id_rsa
+
+  - name: Setup DDEV
+    uses: ddev/github-action-setup-ddev@v1
+    with:
+      version: ${{ env.DDEV_VERSION || 'latest' }}
+
+  - name: Deploy local environment
+    shell: bash
+    run: |
+      if [ "${{ inputs.caching }}" == "true" ] && [ "${{ steps.cache-db.outputs.cache-hit }}" == "true" ]; then
+        if [ -f ".ddev/db_snapshots/ci-"* ]; then
+          echo "Restoring Drupal database from existing snapshot..."
+          export DDEV_SNAPSHOT=ci
+        fi
+      fi
+      make runtime
+
+  - name: Install Drupal
+    shell: bash
+    run: |
+      if [ "${{ inputs.caching }}" == "true" ] && [ "${{ steps.cache-db.outputs.cache-hit }}" != "true" ]; then
+        export DRUPAL_NO_DEPLOY=true
+      fi
+      make drupal COMPOSER_FLAGS="--ansi --no-interaction --no-progress"
+
+  - name: Create Drupal database cache
+    if: ${{ inputs.caching == 'true' && steps.cache-db.outputs.cache-hit != 'true' }}
+    shell: bash
+    run: |
+      echo "Caching Drupal database..."
+      ddev drush sql:sanitize -y
+      ddev snapshot --name ci
+      make drupal-deploy
+
+  - name: Install frontend
+    shell: bash
+    run: |
+      make frontend FRONTEND_PREVIEW=true
+
+{% endverbatim -%}
+{% endif %}

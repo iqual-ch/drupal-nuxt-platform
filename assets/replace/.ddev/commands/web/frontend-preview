@@ -1,0 +1,56 @@
+#!/bin/bash
+
+## Description: Build and serve the production frontend (Nitro server) in the background.
+## Usage: frontend-preview [--stop] [--skip-build]
+## Flags: [{"Name":"stop","Usage":"Stop the running production frontend server."},{"Name":"skip-build","Usage":"Skip the build and only (re)start the server from the existing .output."}]
+## Example: "ddev frontend-preview", "ddev frontend-preview --skip-build", "ddev frontend-preview --stop"
+## HostWorkingDir: false
+
+set -eo pipefail
+
+LOG_FILE=/tmp/frontend.log
+FRONTEND_DIR=/var/www/html/frontend
+SERVER_PATTERN='\.output/server/index\.mjs'
+SERVER_URL=http://localhost:3000
+
+# Stop a previously started production frontend server.
+pkill -f "$SERVER_PATTERN" || true
+
+if [[ "$*" == *"--stop"* ]]; then
+  echo "Stopped the production frontend server."
+  exit 0
+fi
+
+cd "$FRONTEND_DIR"
+export NODE_ENV=production
+
+if [[ "$*" != *"--skip-build"* ]]; then
+  echo "Building the production frontend..."
+  bun run build
+fi
+
+if [ ! -d .output/server ]; then
+  echo "No frontend build found in .output. Run without --skip-build first." >&2
+  exit 1
+fi
+
+# Fail early if something else (e.g. the frontend dev server) occupies the port.
+if curl -fso /dev/null "$SERVER_URL"; then
+  echo "Port 3000 is already in use (is the frontend dev server running?). Stop it first." >&2
+  exit 1
+fi
+
+echo "Starting the production frontend server..."
+nohup bun .output/server/index.mjs > "$LOG_FILE" 2>&1 &
+
+# Wait for the server to become ready, then show the start-up log.
+for _ in $(seq 1 30); do
+  curl -fso /dev/null "$SERVER_URL" && break
+  sleep 1
+done
+cat "$LOG_FILE"
+
+if ! curl -fso /dev/null "$SERVER_URL"; then
+  echo "The production frontend server did not become ready." >&2
+  exit 1
+fi

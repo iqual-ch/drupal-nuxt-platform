@@ -1,0 +1,70 @@
+{% if workflows.vrt %}
+name: Visual Regression testing
+
+{% if workflows.phpunit %}
+{% verbatim -%}
+env:
+  DDEV_VERSION: ${{ vars.DDEV_VERSION || 'latest' }}
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      cache_key:
+        default: "${{ github.sha }}"
+        type: string
+
+jobs:
+  run-vr-tests:
+    name: Visual Regression tests
+    runs-on: {% endverbatim %}{{ workflows.runner | default('ubuntu-latest') }}{% verbatim %}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+
+    - name: Install Drupal locally
+      uses: ./.github/actions/install-local
+      with:
+        ssh_key: ${{ secrets.SSH_KEY }}
+        caching: true
+        cache_key: ${{ inputs.cache_key || github.sha }}
+
+    - name: Visual Regression Tests
+      uses: iqual-ch/playwright-vrt@v0
+      with:
+        config: playwright-vrt.config.json
+        cache-key: ${{ inputs.cache_key || github.sha }}
+{% endverbatim -%}
+{% else %}
+{% verbatim -%}
+env:
+  DDEV_VERSION: ${{ vars.DDEV_VERSION || 'latest' }}
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+jobs:
+  run-vr-tests:
+    name: Visual Regression tests
+    runs-on: {% endverbatim %}{{ workflows.runner | default('ubuntu-latest') }}{% verbatim %}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+
+    - name: Install Drupal locally
+      uses: ./.github/actions/install-local
+      with:
+        ssh_key: ${{ secrets.SSH_KEY }}
+
+    - name: Visual Regression Tests
+      uses: iqual-ch/playwright-vrt@v0
+      with:
+        config: playwright-vrt.config.json
+        cache-key: ${{ github.sha }}
+{% endverbatim -%}
+{% endif %}
+{% endif %}

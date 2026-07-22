@@ -1,0 +1,8 @@
+#!/bin/bash
+
+## Description: Run phpcbf inside the web container.
+## Usage: phpcbf [args]
+## Example: "ddev phpcbf"
+## HostWorkingDir: false
+
+cd /var/www/html/drupal; phpcbf "$@"

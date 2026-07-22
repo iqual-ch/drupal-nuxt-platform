@@ -1,0 +1,17 @@
+{% if deployment == "platform.sh" %}
+"https://{default}/":
+    type: upstream
+    upstream: "varnish:http"
+    cache:
+        enabled: false
+    tls:
+      strict_transport_security:
+          enabled: true
+          include_subdomains: true
+          preload: true
+
+# Cloudflare Images proxy, if domain is not on CF.
+"https://{default}/cdn-cgi/image":
+  type: proxy
+  to: "https://iqual.cloud/cdn-cgi/image"
+{% endif %}
