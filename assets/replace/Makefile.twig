@@ -208,8 +208,8 @@ drupal-analysis: ## Static analysis of Drupal
 
 drupal-lint: ## Lint Drupal
 	@echo -e " $(MSG_INFO) Linting Drupal"
-	REPO_CODE="$$(git ls-tree -d -r $$(git write-tree) --name-only | grep -E '(themes|modules)/custom/[^/]+$$' | paste -s -)"
-	ddev parallel-lint $${REPO_CODE/drupal\//} -e php,module,theme,inc,install,profile $(PARALINT_FLAGS)
+	REPO_CODE="$$(git ls-tree -d -r $$(git write-tree) --name-only | grep -E '{% if monorepo %}^drupal/packages/[^/]+$$' | grep -vE '/(drupal-nuxt-platform|icms)$${% else %}(themes|modules)/custom/[^/]+$${% endif %}' | paste -s -)"
+	ddev parallel-lint $${REPO_CODE//drupal\//} -e php,module,theme,inc,install,profile $(PARALINT_FLAGS)
 	ddev phpcs
 
 frontend-lint: ## Lint Frontend

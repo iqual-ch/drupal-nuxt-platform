@@ -33,7 +33,7 @@ jobs:
       shell: bash
       run: |
         echo "::add-matcher::${{ runner.tool_cache }}/php.json"
-        echo "REPO_CODE=$(git ls-tree -d -r $(git write-tree) --name-only | grep -E '(themes|modules)/custom/[^/]+$$' | paste -s -)" >> $GITHUB_ENV
+{% endverbatim %}{% if monorepo %}        echo "REPO_CODE=$(git ls-tree -d -r $(git write-tree) --name-only | grep -E '^drupal/packages/[^/]+$' | grep -vE '/(drupal-nuxt-platform|icms)$' | paste -s -)" >> $GITHUB_ENV{% else %}        echo "REPO_CODE=$(git ls-tree -d -r $(git write-tree) --name-only | grep -E '(themes|modules)/custom/[^/]+$' | paste -s -)" >> $GITHUB_ENV{% endif %}{% verbatim %}
 
     - name: "Run PHP parallel lint"
       shell: bash
@@ -48,13 +48,16 @@ jobs:
 
     - name: "Run PHPCS"
       shell: bash
+      # The ruleset references the coder sniffs relative to the working
+      # directory, so PHPCS has to run from the app root (like `ddev phpcs`).
+      working-directory: ./drupal
       run: |
         phpcs \
-          --standard=./drupal/phpcs.xml.dist \
+          --standard=./phpcs.xml.dist \
           --runtime-set ignore_warnings_on_exit 1 \
           --report=checkstyle \
           -q \
-          ${REPO_CODE} \
+          ${REPO_CODE//drupal\//} \
           | cs2pr --graceful-warnings
 
 {% endverbatim -%}

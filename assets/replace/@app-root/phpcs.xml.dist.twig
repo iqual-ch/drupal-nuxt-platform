@@ -26,11 +26,15 @@
     <rule ref="Drupal.Commenting.Deprecated.IncorrectTextLayout"><severity>0</severity></rule>
     <rule ref="Drupal.Commenting.Deprecated.DeprecatedMissingSeeTag"><severity>0</severity></rule>
 
-    <file>docroot/modules/custom</file>
+{% if monorepo %}    <file>packages</file>
+{% else %}    <file>docroot/modules/custom</file>
     <file>docroot/themes/custom</file>
-
+{% endif %}
     <exclude-pattern>*/behat</exclude-pattern>
     <exclude-pattern>*/node_modules</exclude-pattern>
     <exclude-pattern>*/vendor</exclude-pattern>
+{% if monorepo %}    <exclude-pattern>*/packages/drupal-nuxt-platform/*</exclude-pattern>
+    <exclude-pattern>*/packages/icms/*</exclude-pattern>
+{% endif %}
 
 </ruleset>

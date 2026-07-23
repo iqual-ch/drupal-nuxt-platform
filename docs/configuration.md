@@ -14,7 +14,7 @@ ddev composer project:init      # re-ask all questions, then apply
 | `name` | yes* | – | Project code name (DDEV project name, hostnames, CI naming). |
 | `title` | no | `name` | Human-readable project title (README). |
 | `url` | yes* | – | Live URL of the website (stage file proxy origin, drush aliases, VRT reference, `NUXT_PUBLIC_IMAGE_BASE_URL`). |
-| `monorepo` | no | `false` | `true` only in the ICMS development monorepo. Toggles workspace-specific behavior (`@workspace:*` bun dependencies, monorepo-only DDEV commands). |
+| `monorepo` | no | `false` | `true` only in the ICMS development monorepo. Toggles workspace-specific behavior (`@workspace:*` bun dependencies, monorepo-only DDEV commands) and points the QA tooling (PHPUnit test suites, PHPCS, PHPStan, parallel-lint) at `packages/*` instead of `docroot/modules|themes/custom` (the `drupal-nuxt-platform` and `icms` asset/template packages are excluded from linting). |
 | `deployment` | no | `platform.sh` | `platform.sh` or `local-only`. With `local-only` all hosting-related files are omitted/removed. |
 | `drupal_spot` | yes* | `main-bvxea6i` | Machine name of the Single Point of Truth (SPOT) environment for database/config sync. |
 | `routing.languages` | no | `["de", "fr", "it", "en"]` | Site languages. Drives the URL language prefix in the nginx/VCL route split and the root `Accept-Language` redirect (first entry = fallback target; with a single language `/` redirects unconditionally to it). |

@@ -87,7 +87,9 @@ jobs:
       browser-testing: ${{ needs.build.outputs.browser_testing == 'true'}}
       cache_key: ${{ github.event.pull_request.head.sha || github.sha }}
     secrets: inherit
-
+{% endverbatim -%}
+{% if workflows.vrt %}
+{% verbatim %}
   visual-regression-tests:
     name: "VRT"
     uses: ./.github/workflows/visual-regression-testing.yml
@@ -96,4 +98,5 @@ jobs:
       cache_key: ${{ github.event.pull_request.head.sha || github.sha }}
     secrets: inherit
 {% endverbatim -%}
+{% endif %}
 {% endif %}

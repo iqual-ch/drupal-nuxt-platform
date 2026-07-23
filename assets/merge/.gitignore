@@ -17,6 +17,7 @@ Thumbs.db
 files-private
 drupal/docroot/sites/simpletest/*
 drupal/.phpunit.result.cache
+drupal/.phpunit.cache
 
 # Frontend
 frontend/node_modules
