@@ -36,7 +36,7 @@ ddev composer project:init      # re-ask all questions, then apply
 | `workflows.runner` | no | `ubuntu-latest` | GitHub Actions runner label for DDEV-based jobs. |
 | `ai.claude` | no | `true` | Ship `.claude/settings.json` (iqual Claude plugin marketplace). |
 | `ai.agents` | no | `true` | Reserved for `AGENTS.md` management (not shipped yet). |
-| `ai.copilot` | no | `true` | Ship the Copilot coding-agent setup workflow. |
+| `ai.copilot` | no | `true` | Ship the Copilot coding-agent setup workflow. In the monorepo (`monorepo: true`), this also provisions a full DDEV + Drupal + Nuxt stack (from-scratch `drush si --existing-config` install via `./.github/actions/install-local` with `site_install: true`, seeded with `icms_demo_content`) instead of just installing agent skills. |
 
 \* Required variables are prompted interactively (see [`questions.json`](../questions.json)) and persisted back to `composer.json`. In non-interactive runs, missing required values abort the scaffolding.
 

@@ -9,7 +9,7 @@ jobs:
   copilot-setup-steps:
     runs-on: {{ workflows.runner | default('ubuntu-latest') }}
 
-    timeout-minutes: 15
+    timeout-minutes: {{ monorepo ? 55 : 15 }}
 
     permissions:
       contents: read
@@ -20,4 +20,23 @@ jobs:
 
     - name: Install agent skills from the iqual-developer plugin
       uses: iqual-ch/claude-plugins/.github/actions/install-skills@main
+{% if monorepo %}
+
+    - name: Install Drupal locally
+      uses: ./.github/actions/install-local
+      with:
+        site_install: true
+
+    - name: Seed demo content
+      shell: bash
+      working-directory: drupal
+      run: |
+        # Demo content isn't kept installed on this repo; restore the
+        # committed composer.json/composer.lock afterwards instead of
+        # `composer remove` (recipes are gitignored, so nothing else changes).
+        ddev composer require iqual/icms_demo_content
+        ddev drush recipe ../recipes/icms_demo_content
+        ddev drush cr
+        git checkout -- composer.json composer.lock
+{% endif %}
 {% endif %}

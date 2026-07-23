@@ -1,10 +1,13 @@
-{% if workflows.update or workflows.vrt or workflows.phpunit %}
+{% if workflows.update or workflows.vrt or workflows.phpunit or (monorepo and ai.copilot) %}
 {%- verbatim -%}
 name: Install Drupal locally
 description: Checkout, configure, deploy and install a local drupal project
 inputs:
   ssh_key:
-    required: true
+    required: false
+  site_install:
+    required: false
+    default: false
   caching:
     required: false
     default: false
@@ -47,6 +50,7 @@ runs:
       EOF
 
   - name: Setup SSH key
+    if: ${{ inputs.ssh_key != '' }}
     shell: bash
     run: |
       mkdir -p .ddev/homeadditions/.ssh
@@ -76,7 +80,11 @@ runs:
       if [ "${{ inputs.caching }}" == "true" ] && [ "${{ steps.cache-db.outputs.cache-hit }}" != "true" ]; then
         export DRUPAL_NO_DEPLOY=true
       fi
-      make drupal COMPOSER_FLAGS="--ansi --no-interaction --no-progress"
+      if [ "${{ inputs.site_install }}" == "true" ]; then
+        make drupal NEW_PROJECT=true COMPOSER_FLAGS="--ansi --no-interaction --no-progress"
+      else
+        make drupal COMPOSER_FLAGS="--ansi --no-interaction --no-progress"
+      fi
 
   - name: Create Drupal database cache
     if: ${{ inputs.caching == 'true' && steps.cache-db.outputs.cache-hit != 'true' }}
