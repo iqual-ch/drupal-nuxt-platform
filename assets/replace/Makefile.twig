@@ -160,6 +160,13 @@ destroy: ## Destroy local runtime
 	@echo -e " $(MSG_INFO) Destroying DDEV runtimes"
 	ddev delete
 
+## Worktrees
+worktree: ## Create parallel git worktree with its own DDEV project
+	@ddev worktree add "$(BRANCH)" $(SLUG)
+
+worktree-destroy: ## Remove a worktree and its DDEV project
+	@ddev worktree remove "$(SLUG)" $(if $(filter true,$(FORCE)),--force)
+
 ## Testing
 test: drupal-test frontend-test ## Run project tests
 

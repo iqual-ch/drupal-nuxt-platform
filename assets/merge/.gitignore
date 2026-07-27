@@ -28,7 +28,9 @@ frontend/.eslintcache
 # DDEV secrets & CI config
 .ddev/homeadditions/.ssh
 .ddev/config.ci.yaml
+.ddev/config.local.yaml
 .ddev/.env
+.ddev/.env.*
 /.composer
 
 # DDEV add-ons
