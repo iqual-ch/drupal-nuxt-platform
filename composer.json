@@ -1,7 +1,7 @@
 {
     "name": "iqual/drupal-nuxt-platform",
     "description": "Project asset package for the iqual internal developer platform's decoupled Drupal + Nuxt integration.",
-    "version": "1.x-dev",
+    "version": "1.6.0-rc.1",
     "type": "library",
     "license": "GPL-2.0-or-later",
     "authors": [
@@ -14,7 +14,9 @@
         "iqual/project-scaffold": "^1.1"
     },
     "archive": {
-        "exclude": ["/docs"]
+        "exclude": [
+            "/docs"
+        ]
     },
     "bin": [
         "bin/ddev-shim-php",
@@ -51,7 +53,12 @@
             },
             "drupal_spot": "main-bvxea6i",
             "routing": {
-                "languages": ["de", "fr", "it", "en"],
+                "languages": [
+                    "de",
+                    "fr",
+                    "it",
+                    "en"
+                ],
                 "extra_drupal_paths": [],
                 "extra_drupal_entities": []
             },
