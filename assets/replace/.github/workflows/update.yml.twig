@@ -24,7 +24,15 @@ on:
         required: false
         type: string
         description: "Optional branch name for the pull request (default: misc/update-<timestamp>)."
-jobs:
+{% endverbatim %}{% if not monorepo %}{% verbatim %}      stability:
+        required: false
+        type: choice
+        default: 'stable'
+        options:
+          - stable
+          - rc
+        description: "Dependency stability for the update. Use 'rc' to test ICMS release candidates (X.Y.Z-rc.N) before their final release."
+{% endverbatim %}{% endif %}{% verbatim %}jobs:
   update:
     runs-on: {% endverbatim %}{{ workflows.runner | default('ubuntu-latest') }}{% verbatim %}
 
@@ -40,7 +48,7 @@ jobs:
     - name: Run project updates
       shell: bash
       run: |
-        make update COMPOSER_FLAGS=-n DRUSH_FLAGS=-y
+        make update COMPOSER_FLAGS=-n DRUSH_FLAGS=-y{% endverbatim %}{% if not monorepo %}{% verbatim %} STABILITY=${{ github.event.inputs.stability || 'stable' }}{% endverbatim %}{% endif %}{% verbatim %}
         if [ -f .ddev/homeadditions/.ssh/id_rsa ]; then
           rm .ddev/homeadditions/.ssh/id_rsa
         fi
@@ -56,7 +64,9 @@ jobs:
         body: |
           Automatically generated project update (${{ env.EXECUTION_DATE }}):
 
-          ## Tasks
+{% endverbatim %}{% if not monorepo %}{% verbatim %}          ${{ github.event.inputs.stability == 'rc' && '⚠️ This update was run with `rc` stability and may contain unreleased release-candidate versions. Do not merge it into a production branch.' || '' }}
+
+{% endverbatim %}{% endif %}{% verbatim %}          ## Tasks
 
           - [x] Update vendor packages locally with `composer update`
           - [x] Update Drupal database locally with `drush updatedb`

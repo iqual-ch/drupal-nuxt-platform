@@ -284,14 +284,29 @@ frontend-bundle-%: ## Install Frontend bundle
 	echo -e " $(MSG_SUCCESS) Frontend bundle \"$*\" installed."
 
 ## Maintenance
-update: ## Update project
+{% if not monorepo %}# Dependency stability for updates: "stable" (default) or "rc" to
+# also accept ICMS release candidates (X.Y.Z-rc.N).
+STABILITY?=stable
+
+{% endif %}update: ## Update project
 	$(MAKE) drupal-update
 	$(MAKE) frontend-update
 
 drupal-update: ## Update Drupal
 	@echo -e " $(MSG_INFO) Updating Drupal"
-	ddev composer update $(COMPOSER_FLAGS)
-	ddev drush cr
+{% if not monorepo %}	if [ "$(STABILITY)" = "rc" ]; then
+		echo -e " $(MSG_INFO) Allowing release candidates for this update"
+		ORIG_MINIMUM_STABILITY=$$(ddev composer config minimum-stability || echo stable)
+		ORIG_PREFER_STABLE=$$(ddev composer config prefer-stable || echo false)
+		ddev composer config minimum-stability rc
+		ddev composer config prefer-stable false
+	fi
+{% endif %}	ddev composer update $(COMPOSER_FLAGS)
+{% if not monorepo %}	if [ "$(STABILITY)" = "rc" ]; then
+		ddev composer config minimum-stability "$$ORIG_MINIMUM_STABILITY"
+		ddev composer config prefer-stable "$$ORIG_PREFER_STABLE"
+	fi
+{% endif %}	ddev drush cr
 	ddev drush updb $(DRUSH_FLAGS)
 	ddev drush cex $(DRUSH_FLAGS)
 	ddev drush cr
@@ -299,7 +314,11 @@ drupal-update: ## Update Drupal
 frontend-update: ## Update frontend
 	@echo -e " $(MSG_INFO) Updating Frontend"
 	ddev bun update
-	$(MAKE) frontend-build
+{% if not monorepo %}	if [ "$(STABILITY)" = "rc" ]; then
+		echo -e " $(MSG_INFO) Updating @iqual packages to release candidates"
+		ddev bun run ./node_modules/@iqual/nuxt-icms/scripts/update-icms.ts rc
+	fi
+{% endif %}	$(MAKE) frontend-build
 
 upgrade: ## Upgrade project
 	@echo -e " $(MSG_INFO) Upgrading project"
