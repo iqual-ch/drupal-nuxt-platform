@@ -92,6 +92,12 @@ drupal-db: ## Import drupal database
 	if [ "$(NEW_PROJECT)" = "true" ]; then
 		echo -e " $(MSG_INFO) Running Drupal site install"
 		ddev drush si --existing-config --yes $(DRUSH_FLAGS)
+		if [ -n "$$DEFAULT_CONTENT" ] && ddev exec "composer search iqual/icms_demo_content" | grep "iqual/icms_demo_content" > /dev/null; then
+			echo -e " $(MSG_INFO) Seeding demo content"
+			ddev composer require iqual/icms_demo_content
+			ddev drush recipe ../recipes/icms_demo_content
+			ddev drush cr
+		fi
 		exit 0
 	fi
 	if [ -z "$$(ddev drush status --fields=bootstrap)" ] || [ "$(FORCE)" = "true" ]; then
@@ -263,7 +269,7 @@ drupal-bundle-%: ## Install Drupal bundle
 	DRUPAL_DEFAULT_LANGCODE=$$(ddev drush config:get system.site default_langcode --format=list)
 	ddev drush config:set system.site default_langcode en -y
 	COMPOSER_BUNDLES="iqual/icms_bundle_$*"
-	if [ -n "$$DEFAULT_CONTENT" ] && ddev exec "composer search iqual/icms_bundle_$*_content" | grep -q "iqual/icms_bundle_$*_content"; then
+	if [ -n "$$DEFAULT_CONTENT" ] && ddev exec "composer search iqual/icms_bundle_$*_content" | grep "iqual/icms_bundle_$*_content" > /dev/null; then
 		COMPOSER_BUNDLES="$$COMPOSER_BUNDLES iqual/icms_bundle_$*_content"
 		DEFAULT_CONTENT_RECIPE=true
 	fi
@@ -282,6 +288,12 @@ frontend-bundle-%: ## Install Frontend bundle
 	ddev bun add "@iqual/nuxt-icms-$*{% if monorepo %}@workspace:*{% endif %}"
 	$(MAKE) frontend-build
 	echo -e " $(MSG_SUCCESS) Frontend bundle \"$*\" installed."
+{% if monorepo %}
+
+mono-bundle-preview: ## Create/update a bundle environment branch (BUNDLES=<name|all> BRANCH=<preview/...>)
+	@echo -e " $(MSG_INFO) Creating bundle environment branch \"$(BRANCH)\""
+	bun run scripts/preview/index.ts --bundles "$(BUNDLES)" --branch "$(BRANCH)"
+{% endif %}
 
 ## Maintenance
 {% if not monorepo %}# Dependency stability for updates: "stable" (default) or "rc" to
