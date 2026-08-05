@@ -40,6 +40,13 @@ ddev composer project:init      # re-ask all questions, then apply
 
 \* Required variables are prompted interactively (see [`questions.json`](../questions.json)) and persisted back to `composer.json`. In non-interactive runs, missing required values abort the scaffolding.
 
+> [!WARNING]
+> Never give a **list** variable a non-empty default in this package's `composer.json`:
+> project values are merged over the defaults with `array_replace_recursive()`, which
+> merges lists *by index* (a project's `["de", "fr"]` over a default `["de", "fr", "it",
+> "en"]` yields `["de", "fr", "it", "en"]`). Put list defaults in the templates instead
+> (`|default([...])`), like `routing.languages` does.
+
 ## Asset modes
 
 | Mode | Directory | Behavior |

@@ -53,12 +53,6 @@
             },
             "drupal_spot": "main-bvxea6i",
             "routing": {
-                "languages": [
-                    "de",
-                    "fr",
-                    "it",
-                    "en"
-                ],
                 "extra_drupal_paths": [],
                 "extra_drupal_entities": []
             },

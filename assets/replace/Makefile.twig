@@ -296,8 +296,7 @@ mono-bundle-preview: ## Create/update a bundle environment branch (BUNDLES=<name
 {% endif %}
 
 ## Maintenance
-{% if not monorepo %}# Dependency stability for updates: "stable" (default) or "rc" to
-# also accept ICMS release candidates (X.Y.Z-rc.N).
+{% if not monorepo %}# STABILITY=rc pins the installed ICMS packages to the current release candidate.
 STABILITY?=stable
 
 {% endif %}update: ## Update project
@@ -307,18 +306,16 @@ STABILITY?=stable
 drupal-update: ## Update Drupal
 	@echo -e " $(MSG_INFO) Updating Drupal"
 {% if not monorepo %}	if [ "$(STABILITY)" = "rc" ]; then
-		echo -e " $(MSG_INFO) Allowing release candidates for this update"
-		ORIG_MINIMUM_STABILITY=$$(ddev composer config minimum-stability || echo stable)
-		ORIG_PREFER_STABLE=$$(ddev composer config prefer-stable || echo false)
-		ddev composer config minimum-stability rc
-		ddev composer config prefer-stable false
+		VERSION=$$(ddev exec 'composer show --format=json --all iqual/icms_core | php -r "echo json_decode(stream_get_contents(STDIN))->versions[0];"')
+		VERSION=$${VERSION%%-*}
+		echo -e " $(MSG_INFO) Pinning ICMS packages to ^$$VERSION"
+		PROD=$$(ddev composer show --direct --no-dev --name-only "iqual/icms_*" | tr -d '\r')
+		DEV=$$(ddev composer show --direct --name-only "iqual/icms_*" | tr -d '\r' | grep -vxF "$$PROD" || true)
+		if [ -n "$$PROD" ]; then ddev composer require --no-update $$(printf "%s:^$$VERSION " $$PROD); fi
+		if [ -n "$$DEV" ]; then ddev composer require --no-update --dev $$(printf "%s:^$$VERSION " $$DEV); fi
 	fi
 {% endif %}	ddev composer update $(COMPOSER_FLAGS)
-{% if not monorepo %}	if [ "$(STABILITY)" = "rc" ]; then
-		ddev composer config minimum-stability "$$ORIG_MINIMUM_STABILITY"
-		ddev composer config prefer-stable "$$ORIG_PREFER_STABLE"
-	fi
-{% endif %}	ddev drush cr
+	ddev drush cr
 	ddev drush updb $(DRUSH_FLAGS)
 	ddev drush cex $(DRUSH_FLAGS)
 	ddev drush cr
