@@ -1,7 +1,7 @@
 {
     "name": "iqual/drupal-nuxt-platform",
     "description": "Project asset package for the iqual internal developer platform's decoupled Drupal + Nuxt integration.",
-    "version": "1.6.0-rc.2",
+    "version": "1.x-dev",
     "type": "library",
     "license": "GPL-2.0-or-later",
     "authors": [
