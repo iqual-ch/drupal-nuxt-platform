@@ -51,8 +51,8 @@ ddev composer project:init      # re-ask all questions, then apply
 
 | Mode | Directory | Behavior |
 | --- | --- | --- |
-| `add` | [`assets/add`](../assets/add) | Created only if missing — client-owned afterwards (e.g. `README.md`, `.platform/routes.yaml`, `config.vcl`, `drupal/.gitignore`, per-environment `settings.*.php`). |
-| `replace` | [`assets/replace`](../assets/replace) | Fully managed, overwritten on every scaffold run. A template that renders empty (disabled feature flag) deletes the file. |
+| `add` | [`assets/add`](../assets/add) | Created only if missing — client-owned afterwards (e.g. `README.md`, `.platform/routes.yaml`, `drupal/.gitignore`, per-environment `settings.*.php`). |
+| `replace` | [`assets/replace`](../assets/replace) | Fully managed, overwritten on every scaffold run (e.g. `Makefile`, `.ddev/config.yaml`, `.platform/config.vcl`, CI workflows). A template that renders empty (disabled feature flag) deletes the file. |
 | `merge` | [`assets/merge`](../assets/merge) | Structurally merged, preserving local additions and comments (`.gitignore`, `.gitattributes`, `.platform/applications.yaml`, `.platform/services.yaml`, `.claude/settings.json`, VRT config). |
 
 ## Overriding files per project

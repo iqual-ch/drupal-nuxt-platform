@@ -139,6 +139,7 @@ frontend-deploy: ## Run frontend commands
 	if [ "$(FRONTEND_PREVIEW)" = "true" ]; then
 		$(MAKE) frontend-preview
 	else
+		echo -e " $(MSG_INFO) Starting the Nuxt dev server in the foreground — open the site from a second terminal with \"make launch\", stop with Ctrl+C and restart with \"make frontend\""
 		ddev bun run dev
 	fi
 
