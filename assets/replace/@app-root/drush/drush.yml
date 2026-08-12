@@ -28,7 +28,6 @@ sql:
       - cache
       - 'cache_*'
       - history
-      - 'search_*'
       - 'sessions'
       - 'watchdog'
       - 'queue'
