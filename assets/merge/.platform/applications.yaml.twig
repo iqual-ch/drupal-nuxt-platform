@@ -4,6 +4,8 @@ drupal:
   type: 'php:{{ runtime.php_version }}'
 
   variables:
+      env:
+          PROJECT_SCAFFOLD_AUTO: 'false'
       php:
           memory_limit: 256M
           date.timezone: Europe/Zurich

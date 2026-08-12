@@ -22,6 +22,22 @@
             "default": "https://[name].ddev.site",
             "validation": "https:\\/\\/[^\\/\\s]+"
         },
+        "routing.languages": {
+            "question": "Which <info>languages</info> does the website serve (first entry = default language)?",
+            "options": [
+                "de",
+                "fr",
+                "it",
+                "en"
+            ],
+            "multiple": true,
+            "default": [
+                "de",
+                "fr",
+                "it",
+                "en"
+            ]
+        },
         "runtime.php_version": {
             "question": "What <info>PHP version</info> should be installed?",
             "options": [

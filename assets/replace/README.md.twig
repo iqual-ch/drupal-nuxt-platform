@@ -72,7 +72,7 @@ composer suggest iqual/icms_core --list
 
 ## Project Scaffolding
 
-Project infrastructure files (`Makefile`, `.ddev/`, CI/CD workflows, …) are managed by [`iqual/drupal-nuxt-platform`](https://github.com/iqual-ch/drupal-nuxt-platform) and are updated with the Composer dependencies — do not edit managed files directly. This README was generated once at project creation and is project-owned; extended project-specific documentation belongs in the `./docs` directory. To change the scaffolding configuration use:
+Project infrastructure files (`Makefile`, `.ddev/`, CI/CD workflows, this README, …) are managed by [`iqual/drupal-nuxt-platform`](https://github.com/iqual-ch/drupal-nuxt-platform) and are updated with the Composer dependencies — do not edit managed files directly, they are overwritten on every scaffold run. Project-specific documentation belongs in the `./docs` directory. To change the scaffolding configuration use:
 
 ```bash
 ddev composer project:init
@@ -83,7 +83,7 @@ ddev composer project:init
 {% if (locations['project-root'] ~ '/docs') is existing_file %}
 * [**Project documentation**](./docs) — project-specific documentation (architecture, runbooks, customizations)
 {% endif %}
-{% if (locations['project-root'] ~ '/AGENTS.md') is existing_file %}
+{% if ai.agents %}
 * [AI agent guide](./AGENTS.md) — conventions, commands, and architecture for AI-assisted changes
 {% endif %}
 * [Drupal Nuxt Platform](https://github.com/iqual-ch/drupal-nuxt-platform#readme) — scaffolding, commands, and configuration reference

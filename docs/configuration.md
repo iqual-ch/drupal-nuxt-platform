@@ -17,7 +17,7 @@ ddev composer project:init      # re-ask all questions, then apply
 | `monorepo` | no | `false` | `true` only in the ICMS development monorepo. Toggles workspace-specific behavior (`@workspace:*` bun dependencies, monorepo-only DDEV commands) and points the QA tooling (PHPUnit test suites, PHPCS, PHPStan, parallel-lint) at `packages/*` instead of `docroot/modules|themes/custom` (the `drupal-nuxt-platform` and `icms` asset/template packages are excluded from linting). |
 | `deployment` | no | `platform.sh` | `platform.sh` or `local-only`. With `local-only` all hosting-related files are omitted/removed. |
 | `drupal_spot` | yes* | `main-bvxea6i` | Machine name of the Single Point of Truth (SPOT) environment for database/config sync. |
-| `routing.languages` | no | `["de", "fr", "it", "en"]` | Site languages. Drives the URL language prefix in the nginx/VCL route split and the root `Accept-Language` redirect (first entry = fallback target; with a single language `/` redirects unconditionally to it). |
+| `routing.languages` | no | `["de", "fr", "it", "en"]` | Site languages, asked as a multiple-choice question at project creation. Drives the URL language prefix in the nginx/VCL route split and the root `Accept-Language` redirect (first entry = fallback target; with a single language `/` redirects unconditionally to it). |
 | `routing.extra_drupal_paths` | no | `[]` | Additional path prefixes routed to the Drupal backend. Literal paths only (`[a-z0-9_/-]`, no regex, no trailing slash) — the templates add the language prefix and the path boundary. |
 | `routing.extra_drupal_entities` | no | `[]` | Additional entity path stems whose `/add` and `/{id}/{operation}` routes go to the Drupal backend (like the built-in `node`, `product`, `taxonomy/term`, …). |
 | `platformsh_config.region` | no | `ch-1` | Platform.sh region. |
@@ -34,29 +34,43 @@ ddev composer project:init      # re-ask all questions, then apply
 | `workflows.vrt` | no | `true` | Ship the visual regression testing workflow. |
 | `workflows.phpunit` | no | `false` | Ship the PHPCS/PHPUnit testing workflows. |
 | `workflows.runner` | no | `ubuntu-latest` | GitHub Actions runner label for DDEV-based jobs. |
-| `ai.claude` | no | `true` | Ship `.claude/settings.json` (iqual Claude plugin marketplace). |
-| `ai.agents` | no | `true` | Reserved for `AGENTS.md` management (not shipped yet). |
+| `ai.claude` | no | `true` | Ship `.claude/settings.json` (iqual Claude plugin marketplace). Together with `ai.agents`, also ships a `CLAUDE.md` that imports `AGENTS.md`. |
+| `ai.agents` | no | `true` | Ship the `AGENTS.md` agent instruction file (replace-mode: managed, overwritten on every scaffold run — project-specific knowledge belongs in `docs/` and `.claude/skills/`, not in the file itself). |
 | `ai.copilot` | no | `true` | Ship the Copilot coding-agent setup workflow. In the monorepo (`monorepo: true`), this also provisions a full DDEV + Drupal + Nuxt stack (from-scratch `drush si --existing-config` install via `./.github/actions/install-local` with `site_install: true`, seeded with `icms_demo_content`) instead of just installing agent skills. |
 
 \* Required variables are prompted interactively (see [`questions.json`](../questions.json)) and persisted back to `composer.json`. In non-interactive runs, missing required values abort the scaffolding.
 
-> [!WARNING]
-> Never give a **list** variable a non-empty default in this package's `composer.json`:
-> project values are merged over the defaults with `array_replace_recursive()`, which
-> merges lists *by index* (a project's `["de", "fr"]` over a default `["de", "fr", "it",
-> "en"]` yields `["de", "fr", "it", "en"]`). Put list defaults in the templates instead
-> (`|default([...])`), like `routing.languages` does.
+> [!NOTE]
+> Since `iqual/project-scaffold` 2.0, a **list** value in the project's `composer.json`
+> replaces a package default wholesale (maps still merge recursively, project wins per
+> key), so a project can shrink or empty a list. Defaults for list variables live in the
+> templates (`|default([...])`) and, where asked interactively, in `questions.json` —
+> like `routing.languages` does.
 
 ## Asset modes
 
 | Mode | Directory | Behavior |
 | --- | --- | --- |
-| `add` | [`assets/add`](../assets/add) | Created only if missing — client-owned afterwards (e.g. `README.md`, `.platform/routes.yaml`, `drupal/.gitignore`, per-environment `settings.*.php`). |
-| `replace` | [`assets/replace`](../assets/replace) | Fully managed, overwritten on every scaffold run (e.g. `Makefile`, `.ddev/config.yaml`, `.platform/config.vcl`, CI workflows). A template that renders empty (disabled feature flag) deletes the file. |
-| `merge` | [`assets/merge`](../assets/merge) | Structurally merged, preserving local additions and comments (`.gitignore`, `.gitattributes`, `.platform/applications.yaml`, `.platform/services.yaml`, `.claude/settings.json`, VRT config). |
+| `add` | [`assets/add`](../assets/add) | Created only if missing — client-owned afterwards (e.g. `.platform/routes.yaml`, per-environment `settings.*.php`). |
+| `replace` | [`assets/replace`](../assets/replace) | Fully managed, overwritten on every scaffold run (e.g. `Makefile`, `.ddev/config.yaml`, `.platform/config.vcl`, CI workflows, `README.md`, `AGENTS.md`, `CLAUDE.md`). A template that renders empty (disabled feature flag) deletes the file. |
+| `merge` | [`assets/merge`](../assets/merge) | Structurally merged, preserving local additions and comments (root/`drupal/`/`frontend/` `.gitignore`, `.gitattributes`, `.platform/applications.yaml`, `.platform/services.yaml`, `.claude/settings.json`, VRT config). |
 
 ## Overriding files per project
 
-To take ownership of a file managed by this package, shadow it from a later-listed asset package containing the same relative source path (with the current plugin version the source filename must match **exactly**, including the `.twig` suffix). Disabling scaffolding per file is a pending feature upstream.
+To take ownership of a file managed by this package, either:
+
+* **Ignore it** via root-level glob patterns in the project's `composer.json` — matched destinations are skipped for all asset packages (patterns match the destination path relative to the project root, without any `.twig` suffix):
+
+  ```json
+  "extra": {
+      "project-scaffold": {
+          "ignore-files": ["AGENTS.md", "README.md"]
+      }
+  }
+  ```
+
+  Prefer this sparingly: ignored files no longer receive platform updates. In particular, project-specific documentation belongs in `docs/` (and project-specific skills in `.claude/skills/`) rather than in an ignored copy of a managed file.
+
+* **Shadow it** from a later-listed asset package containing the same relative source path (a `.twig` and a plain source targeting the same destination are detected as an override collision — the later package wins).
 
 For DDEV configuration, prefer DDEV's own `config.*.yaml` override files instead of shadowing `config.yaml`.
