@@ -75,6 +75,17 @@ drupal:
           else
             echo "Drupal not installed. Skipping standard Drupal deploy steps"
           fi
+      # Runs after the environment accepts traffic on the new containers:
+      # soft-purge all cached pages/SSR responses (xkey tag "http_response")
+      # so revalidation hits the new code. Static assets stay warm; Varnish
+      # serves stale during the 15m grace while pages revalidate.
+      post_deploy: |
+          set -e
+          if [ -n "$(drush status --fields=bootstrap)" ] && [ -z "$DRUPAL_NO_DRUSH_DEPLOY" ]; then
+            drush -y p:invalidate tag http_response
+          else
+            echo "Drupal not installed. Skipping external cache invalidation"
+          fi
 
   # The configuration of app when it is exposed to the web.
   web:
