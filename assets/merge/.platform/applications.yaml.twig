@@ -3,6 +3,12 @@
 drupal:
   type: 'php:{{ runtime.php_version }}'
 
+  # Upsun Medium plan default (ICMS-694).
+  size: S
+  resources:
+      base_memory: 512
+      memory_ratio: 512
+
   variables:
       env:
           PROJECT_SCAFFOLD_AUTO: 'false'
@@ -24,6 +30,9 @@ drupal:
           - imagick
           - imap
           - xsl
+      # Sized from measured ICMS request memory (ICMS-694).
+      sizing_hints:
+          request_memory: 100
 
   relationships:
       database: 'db:mysql'
@@ -157,11 +166,18 @@ drupal:
 frontend:
   type: 'nodejs:{{ runtime.node_version }}'
 
+  # Upsun Medium plan default (ICMS-694).
+  size: S
+  resources:
+    base_memory: 256
+    memory_ratio: 384
+
   variables:
     env:
       NODE_ENV: production
       NUXT_TELEMETRY_DISABLED: 1
       NODE_OPTIONS: "--max-old-space-size=3072"
+      NITRO_BUN_IDLE_TIMEOUT: 60
 
   disk: 1024
 

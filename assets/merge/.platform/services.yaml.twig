@@ -3,9 +3,13 @@
 db:
     type: 'mariadb:{{ runtime.db_version }}'
     disk: 2048
+    # Upsun Medium plan default (ICMS-694).
+    size: L
 
 varnish:
     type: varnish:7.3
+    # Upsun Medium plan default (ICMS-694).
+    size: M
     relationships:
         drupal: 'drupal:http'
         frontend: 'frontend:http'
