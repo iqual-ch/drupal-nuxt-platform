@@ -33,6 +33,7 @@ ddev composer project:init      # re-ask all questions, then apply
 | `workflows.upgrade` | no | `true` | Ship the `upgrade.yml` GitHub workflow (payload-driven upgrade operations as PR). |
 | `workflows.vrt` | no | `true` | Ship the visual regression testing workflow. |
 | `workflows.phpunit` | no | `false` | Ship the PHPCS/PHPUnit testing workflows. |
+| `workflows.frontend` | no | `false` | Ship the frontend testing workflow (prettier, ESLint, Vitest, `vue-tsc`, on plain bun without DDEV). Called from the `testing.yml` umbrella, so it only runs on pull requests where `workflows.phpunit` is enabled too. Opt-in like `workflows.phpunit`: enable it once the project's frontend passes `make frontend-lint` and `make frontend-test`. |
 | `workflows.runner` | no | `ubuntu-latest` | GitHub Actions runner label for DDEV-based jobs. |
 | `ai.claude` | no | `true` | Ship `.claude/settings.json` (iqual Claude plugin marketplace). Together with `ai.agents`, also ships a `CLAUDE.md` that imports `AGENTS.md`. |
 | `ai.agents` | no | `true` | Ship the `AGENTS.md` agent instruction file (replace-mode: managed, overwritten on every scaffold run — project-specific knowledge belongs in `docs/` and `.claude/skills/`, not in the file itself). |

@@ -39,7 +39,8 @@
                 "update": true,
                 "upgrade": true,
                 "vrt": true,
-                "phpunit": false
+                "phpunit": false,
+                "frontend": false
             },
             "ai": {
                 "agents": true,

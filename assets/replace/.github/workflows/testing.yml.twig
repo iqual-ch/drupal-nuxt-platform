@@ -88,6 +88,13 @@ jobs:
       cache_key: ${{ github.event.pull_request.head.sha || github.sha }}
     secrets: inherit
 {% endverbatim -%}
+{% if workflows.frontend %}
+{% verbatim %}
+  frontend-tests:
+    name: "Frontend"
+    uses: ./.github/workflows/frontend-testing.yml
+{% endverbatim -%}
+{% endif %}
 {% if workflows.vrt %}
 {% verbatim %}
   visual-regression-tests:
