@@ -5,6 +5,7 @@
 .nitro
 .cache
 dist
+app/tmp.yml
 
 # Node dependencies
 node_modules

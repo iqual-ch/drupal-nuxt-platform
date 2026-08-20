@@ -5,4 +5,7 @@ dist
 node_modules
 schema.graphql
 modules/vuepal3
+
+# Written by `nuxt prepare`, so never formatted by hand.
 graphql/translations.graphql
+app/tmp.yml
