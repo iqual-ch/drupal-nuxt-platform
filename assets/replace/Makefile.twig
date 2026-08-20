@@ -207,7 +207,7 @@ drupal-test-browser: ## Run Drupal browser tests
 
 frontend-test: ## Test Frontend
 	@echo -e " $(MSG_INFO) Testing Frontend"
-	ddev bun run test
+	ddev bun run test:ci
 {% if monorepo %}
 
 mono-test-varnish: ## Validate the Varnish VCL routing and caching semantics
