@@ -90,6 +90,7 @@ drupal-data: drupal-db drupal-fs ## Import drupal data (fs+db)
 drupal-db: ## Import drupal database
 	@echo -e " $(MSG_INFO) Importing Drupal database"
 	if [ "$(NEW_PROJECT)" = "true" ]; then
+		ddev drush cr || true
 		echo -e " $(MSG_INFO) Running Drupal site install"
 		ddev drush si --existing-config --yes $(DRUSH_FLAGS)
 		if [ -n "$$DEFAULT_CONTENT" ] && ddev exec "composer search iqual/icms_demo_content" | grep "iqual/icms_demo_content" > /dev/null; then
@@ -101,6 +102,7 @@ drupal-db: ## Import drupal database
 		exit 0
 	fi
 	if [ -z "$$(ddev drush status --fields=bootstrap)" ] || [ "$(FORCE)" = "true" ]; then
+		ddev drush cr || true
 		ddev drush sql:sync @spot @self --yes $(DRUSH_FLAGS)
 	else
 		echo -e " $(MSG_WARNING) Existing database detected. Skipping database import. Use \"FORCE=true\" to force import."
