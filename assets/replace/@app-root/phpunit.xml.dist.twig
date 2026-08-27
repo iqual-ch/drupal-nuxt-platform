@@ -16,41 +16,51 @@
     <testsuite name="app">
       <directory>./test*/src</directory>
     </testsuite>
-    <testsuite name="unit">
+{% if monorepo %}    <!-- iqual/icms-test-suite is a path repository here (vendor/iqual/icms-test-suite
+         symlinks to packages/icms-test-suite), so the packages glob already covers it
+         and the vendor glob used in client projects is omitted to avoid double
+         discovery. -->
+{% endif %}    <testsuite name="unit">
       <directory>./test*/src/Unit</directory>
       <directory>./docroot/modules/custom/*/tests/src/Unit</directory>
 {% if monorepo %}      <directory>./packages/*/tests/src/Unit</directory>
-{% endif %}      <directory>./vendor/iqual/*-test-suite/tests/src/Unit</directory>
+{% else %}      <directory>./vendor/iqual/*-test-suite/tests/src/Unit</directory>
+{% endif %}
     </testsuite>
     <testsuite name="kernel">
       <directory>./test*/src/Kernel</directory>
       <directory>./docroot/modules/custom/*/tests/src/Kernel</directory>
 {% if monorepo %}      <directory>./packages/*/tests/src/Kernel</directory>
-{% endif %}      <directory>./vendor/iqual/*-test-suite/tests/src/Kernel</directory>
+{% else %}      <directory>./vendor/iqual/*-test-suite/tests/src/Kernel</directory>
+{% endif %}
     </testsuite>
     <testsuite name="functional">
       <directory>./test*/src/Functional</directory>
       <directory>./docroot/modules/custom/*/tests/src/Functional</directory>
 {% if monorepo %}      <directory>./packages/*/tests/src/Functional</directory>
-{% endif %}      <directory>./vendor/iqual/*-test-suite/tests/src/Functional</directory>
+{% else %}      <directory>./vendor/iqual/*-test-suite/tests/src/Functional</directory>
+{% endif %}
     </testsuite>
     <testsuite name="functional-javascript">
       <directory>./test*/src/FunctionalJavascript</directory>
       <directory>./docroot/modules/custom/*/tests/src/FunctionalJavascript</directory>
 {% if monorepo %}      <directory>./packages/*/tests/src/FunctionalJavascript</directory>
-{% endif %}      <directory>./vendor/iqual/*-test-suite/tests/src/FunctionalJavascript</directory>
+{% else %}      <directory>./vendor/iqual/*-test-suite/tests/src/FunctionalJavascript</directory>
+{% endif %}
     </testsuite>
     <testsuite name="existingsite">
       <directory>./test*/src/ExistingSite</directory>
       <directory>./docroot/modules/custom/*/tests/src/ExistingSite</directory>
 {% if monorepo %}      <directory>./packages/*/tests/src/ExistingSite</directory>
-{% endif %}      <directory>./vendor/iqual/*-test-suite/tests/src/ExistingSite</directory>
+{% else %}      <directory>./vendor/iqual/*-test-suite/tests/src/ExistingSite</directory>
+{% endif %}
     </testsuite>
     <testsuite name="existingsite-javascript">
       <directory>./test*/src/ExistingSiteJavascript</directory>
       <directory>./docroot/modules/custom/*/tests/src/ExistingSiteJavascript</directory>
 {% if monorepo %}      <directory>./packages/*/tests/src/ExistingSiteJavascript</directory>
-{% endif %}      <directory>./vendor/iqual/*-test-suite/tests/src/ExistingSiteJavascript</directory>
+{% else %}      <directory>./vendor/iqual/*-test-suite/tests/src/ExistingSiteJavascript</directory>
+{% endif %}
     </testsuite>
   </testsuites>
 </phpunit>

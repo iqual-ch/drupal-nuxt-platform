@@ -143,6 +143,11 @@ frontend-deploy: ## Run frontend commands
 		ddev bun run dev
 	fi
 
+frontend-schema: ## Download the GraphQL schema from the local Drupal backend into frontend/schema.graphql
+	@echo -e " $(MSG_INFO) Downloading the GraphQL schema from Drupal"
+	ddev exec --dir /var/www/html/frontend env NUXT_GRAPHQL_DOWNLOAD_SCHEMA=true bunx nuxt prepare
+	echo -e " $(MSG_SUCCESS) frontend/schema.graphql is up to date with the local Drupal backend"
+
 frontend-preview: ## Build & serve the production frontend locally
 	@echo -e " $(MSG_INFO) Building & serving the production frontend"
 	ddev frontend-preview

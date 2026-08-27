@@ -32,8 +32,8 @@ ddev composer project:init      # re-ask all questions, then apply
 | `workflows.update` | no | `true` | Ship the `update.yml` GitHub workflow (composer + bun updates as PR). |
 | `workflows.upgrade` | no | `true` | Ship the `upgrade.yml` GitHub workflow (payload-driven upgrade operations as PR). |
 | `workflows.vrt` | no | `true` | Ship the visual regression testing workflow. |
-| `workflows.phpunit` | no | `false` | Ship the PHPCS/PHPUnit testing workflows. |
-| `workflows.frontend` | no | `false` | Ship the frontend testing workflow (prettier, ESLint, Vitest, `vue-tsc`, on plain bun without DDEV). Called from the `testing.yml` umbrella, so it only runs on pull requests where `workflows.phpunit` is enabled too. Opt-in like `workflows.phpunit`: enable it once the project's frontend passes `make frontend-lint` and `make frontend-test`. |
+| `workflows.phpunit` | no | `true` | Ship the PHPCS/PHPUnit testing workflows (`testing.yml` umbrella on pull requests: PHPCS, PHPUnit unit/database/browser suites — including the ICMS product test suite `iqual/icms-test-suite`, which arrives through `iqual/icms_core_dev`). Default `true` since ICMS 1.7; set it to `false` to opt out. |
+| `workflows.frontend` | no | `true` | Ship the frontend testing workflow (prettier, ESLint, Vitest — including the ICMS product specs through the shared config —, `vue-tsc`, on plain bun without DDEV). Called from the `testing.yml` umbrella, so it only runs on pull requests where `workflows.phpunit` is enabled too. Default `true` since ICMS 1.7; set it to `false` to opt out while the project's frontend doesn't pass `make frontend-lint` and `make frontend-test` yet. |
 | `workflows.runner` | no | `ubuntu-latest` | GitHub Actions runner label for DDEV-based jobs. |
 | `ai.claude` | no | `true` | Ship `.claude/settings.json` (iqual Claude plugin marketplace). Together with `ai.agents`, also ships a `CLAUDE.md` that imports `AGENTS.md`. |
 | `ai.agents` | no | `true` | Ship the `AGENTS.md` agent instruction file (replace-mode: managed, overwritten on every scaffold run — project-specific knowledge belongs in `docs/` and `.claude/skills/`, not in the file itself). |
@@ -52,7 +52,7 @@ ddev composer project:init      # re-ask all questions, then apply
 
 | Mode | Directory | Behavior |
 | --- | --- | --- |
-| `add` | [`assets/add`](../assets/add) | Created only if missing — client-owned afterwards (e.g. `.platform/routes.yaml`, per-environment `settings.*.php`). |
+| `add` | [`assets/add`](../assets/add) | Created only if missing — client-owned afterwards (e.g. `.platform/routes.yaml`, per-environment `settings.*.php`, `frontend/vitest.config.mts` — the project's wrapper around the shared ICMS Vitest config from `@iqual/nuxt-icms-dev`, where product specs are excluded or project specs added). |
 | `replace` | [`assets/replace`](../assets/replace) | Fully managed, overwritten on every scaffold run (e.g. `Makefile`, `.ddev/config.yaml`, `.platform/config.vcl`, CI workflows, `README.md`, `AGENTS.md`, `CLAUDE.md`). A template that renders empty (disabled feature flag) deletes the file. |
 | `merge` | [`assets/merge`](../assets/merge) | Structurally merged, preserving local additions and comments (root/`drupal/`/`frontend/` `.gitignore`, `.gitattributes`, `.platform/applications.yaml`, `.platform/services.yaml`, `.claude/settings.json`, VRT config). |
 

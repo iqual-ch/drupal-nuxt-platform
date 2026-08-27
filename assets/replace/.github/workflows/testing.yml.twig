@@ -7,9 +7,19 @@ env:
 
 on:
   workflow_dispatch:
-  pull_request:
+{% endverbatim %}{% if monorepo %}{% verbatim %}    inputs:
+      bundles:
+        description: 'ICMS bundles to test on a fresh install: "all", or a comma-separated list (e.g. "news,people"). Empty derives the list from the pull request.'
+        default: ''
+        required: false
+        type: string
+{% endverbatim %}{% endif %}{% verbatim %}  pull_request:
     types: [opened, reopened, ready_for_review]
-
+{% endverbatim %}{% if monorepo %}{% verbatim %}  # The monorepo is continuously deployed from main: every merge gets a full
+  # run against SPOT (the bundle matrix stays PR-only — nothing to derive from).
+  push:
+    branches: [main]
+{% endverbatim %}{% endif %}{% verbatim %}
 concurrency:
   group: ci-drupal-testing-${{ github.ref }}
   cancel-in-progress: true
@@ -22,6 +32,8 @@ jobs:
     outputs:
       browser_testing: ${{ steps.phpunit-tests.outputs.browser_testing }}
       database_testing: ${{ steps.phpunit-tests.outputs.database_testing }}
+{% endverbatim %}{% if monorepo %}{% verbatim %}      bundles: ${{ steps.bundles.outputs.bundles }}
+{% endverbatim %}{% endif %}{% verbatim %}
 
     steps:
     - name: Checkout
@@ -56,7 +68,40 @@ jobs:
           echo "database_testing=true" >> $GITHUB_OUTPUT
         fi
 
-    - name: Detect missing config in repository
+{% endverbatim %}{% if monorepo %}{% verbatim %}    # Bundles are never installed on main, so the suite's bundle tests need a
+    # fresh site per bundle (see the phpunit-bundle-tests job). To keep PRs
+    # fast, only the bundles a PR touches are tested; a change to the suite
+    # itself (or to this workflow) tests all of them. `workflow_dispatch` can
+    # force "all" or a list.
+    - name: Detect ICMS bundles touched by this pull request
+      id: bundles
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REQUESTED: ${{ inputs.bundles }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        ALL_BUNDLES=$(ls -d drupal/packages/icms_bundle_*/ | xargs -n1 basename | sed -E 's/^icms_bundle_//; s/_(logic|content)$//' | sort -u)
+        SELECTED=""
+        if [ "$REQUESTED" = "all" ]; then
+          SELECTED="$ALL_BUNDLES"
+        elif [ -n "$REQUESTED" ]; then
+          SELECTED=$(echo "$REQUESTED" | tr ',' '\n' | tr -d ' ')
+        elif [ -n "$PR_NUMBER" ]; then
+          CHANGED_FILES=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')
+          if echo "$CHANGED_FILES" | grep -qE '^(drupal/packages/icms-test-suite/|\.github/workflows/testing\.yml$)'; then
+            SELECTED="$ALL_BUNDLES"
+          else
+            SELECTED=$(echo "$CHANGED_FILES" | sed -nE 's#^drupal/packages/icms_bundle_([a-z0-9]+)(_logic|_content)?/.*#\1#p; s#^frontend/packages/nuxt-icms-([a-z0-9]+)/.*#\1#p' | sort -u)
+          fi
+        fi
+        # Only bundles that exist in this checkout (e.g. nuxt-icms-dev is not a bundle).
+        SELECTED=$(comm -12 <(echo "$SELECTED" | sort -u) <(echo "$ALL_BUNDLES") | sed '/^$/d')
+        BUNDLES=$(printf '%s\n' $SELECTED | sed '/^$/d' | jq -R . | jq -sc .)
+        echo "Bundles to test: $BUNDLES"
+        echo "bundles=$BUNDLES" >> $GITHUB_OUTPUT
+
+{% endverbatim %}{% endif %}{% verbatim %}    - name: Detect missing config in repository
       shell: bash
       run: |
         ddev drush --no config:export --diff || \
@@ -66,6 +111,16 @@ jobs:
       shell: bash
       run: |
         make drupal-validate
+
+    # `nuxt prepare` validates the frontend's GraphQL documents against the
+    # committed schema.graphql, but only a download shows whether that schema
+    # still matches what Drupal actually serves.
+    - name: Detect a stale frontend GraphQL schema
+      shell: bash
+      run: |
+        make frontend-schema
+        git diff --exit-code --stat -- frontend/schema.graphql || \
+          (echo '::error::frontend/schema.graphql does not match the Drupal GraphQL schema. Run "make frontend-schema" and commit the result.' && exit 1)
 
   lint:
     name: "PHPCS"
@@ -87,7 +142,55 @@ jobs:
       browser-testing: ${{ needs.build.outputs.browser_testing == 'true'}}
       cache_key: ${{ github.event.pull_request.head.sha || github.sha }}
     secrets: inherit
-{% endverbatim -%}
+
+{% endverbatim %}{% if monorepo %}{% verbatim %}  # One fresh site per touched ICMS bundle: `drush si --existing-config`, the
+  # bundle with its demo content, then the suite's `icms_bundle_<name>` group.
+  phpunit-bundle-tests:
+    name: "PHPUnit bundle: ${{ matrix.bundle }}"
+    needs: [build]
+    if: ${{ needs.build.outputs.bundles != '' && needs.build.outputs.bundles != '[]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        bundle: ${{ fromJSON(needs.build.outputs.bundles) }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+
+    - name: Install Drupal from configuration
+      uses: ./.github/actions/install-local
+      with:
+        site_install: true
+
+    - name: Install the bundle with its demo content
+      shell: bash
+      run: |
+        make bundle-${{ matrix.bundle }} DEFAULT_CONTENT=true
+
+    - name: Run the bundle tests
+      shell: bash
+      run: |
+        make drupal-test-db PHPUNIT_FLAGS="--group=icms_bundle_${{ matrix.bundle }} --log-junit TEST-phpunit.xml"
+
+    - name: Publish Test Report
+      uses: mikepenz/action-junit-report@v6
+      if: success() || failure()
+      with:
+        report_paths: '**/TEST-*.xml'
+        check_name: "PHPUnit bundle report: ${{ matrix.bundle }}"
+        transformers: '[{"searchValue":"var/www/html/","replaceValue":""}]'
+        annotate_only: true
+
+    - name: Upload HTML output
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: phpunit-bundle-report-${{ matrix.bundle }}
+        path: ./drupal/docroot/sites/simpletest/browser_output
+{% endverbatim %}{% endif %}{% verbatim %}{% endverbatim -%}
 {% if workflows.frontend %}
 {% verbatim %}
   frontend-tests:
