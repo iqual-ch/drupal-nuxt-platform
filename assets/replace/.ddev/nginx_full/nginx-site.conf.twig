@@ -29,11 +29,11 @@
     'translate', 'unmasquerade', 'user', 'views', 'webform'
 ] %}
 {% set drupal_entities = ['node', 'taxonomy/term', 'product', 'profile', 'file', 'store'] %}
-{% set drupal_operations = ['access', 'add', 'convertbundles', 'delete', 'edit', 'registrations', 'revisions', 'translations', 'variations'] %}
+{% set drupal_operations = ['access', 'add', 'convertbundles', 'delete', 'edit', 'registrations', 'revisions', 'translations', 'variations', 'webform'] %}
 {% set lang_alt = languages|join('|') %}
-{% set paths_alt = (drupal_paths + routing.extra_drupal_paths|default([]))|sort|join('|') %}
-{% set entities_alt = (drupal_entities + routing.extra_drupal_entities|default([]))|sort|join('|') %}
-{% set ops_alt = drupal_operations|sort|join('|') %}
+{% set paths_alt = drupal_paths|merge(routing.extra_drupal_paths|default([]))|sort|join('|') %}
+{% set entities_alt = drupal_entities|merge(routing.extra_drupal_entities|default([]))|sort|join('|') %}
+{% set ops_alt = drupal_operations|merge(routing.extra_drupal_operations|default([]))|sort|join('|') %}
 
 # Check if a X-Forwarded-Host header (set by reverse-proxy) is already present. If not take the value of the 'Host' header.
 map $http_x_forwarded_host $proxy_x_forwarded_host {

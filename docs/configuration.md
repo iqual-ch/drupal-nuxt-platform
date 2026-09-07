@@ -20,6 +20,7 @@ ddev composer project:init      # re-ask all questions, then apply
 | `routing.languages` | no | `["de", "fr", "it", "en"]` | Site languages, asked as a multiple-choice question at project creation. Drives the URL language prefix in the nginx/VCL route split and the root `Accept-Language` redirect (first entry = fallback target; with a single language `/` redirects unconditionally to it). |
 | `routing.extra_drupal_paths` | no | `[]` | Additional path prefixes routed to the Drupal backend. Literal paths only (`[a-z0-9_/-]`, no regex, no trailing slash) — the templates add the language prefix and the path boundary. |
 | `routing.extra_drupal_entities` | no | `[]` | Additional entity path stems whose `/add` and `/{id}/{operation}` routes go to the Drupal backend (like the built-in `node`, `product`, `taxonomy/term`, …). |
+| `routing.extra_drupal_operations` | no | `[]` | Additional per-entity operations routed to the Drupal backend, on top of the built-in `edit`, `delete`, `revisions`, `translations`, `webform`, … Literal operation segments only — the templates build `/{entity}/{id}/{operation}`. |
 | `platformsh_config.region` | no | `ch-1` | Platform.sh region. |
 | `platformsh_config.project_id` | no | `""` | Platform.sh project ID (drush site aliases). |
 | `runtime.php_version` | yes* | `8.3` | PHP version (DDEV, Upsun, CI). |
