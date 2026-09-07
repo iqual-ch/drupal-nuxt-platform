@@ -53,7 +53,7 @@ ddev composer project:init      # re-ask all questions, then apply
 | Mode | Directory | Behavior |
 | --- | --- | --- |
 | `add` | [`assets/add`](../assets/add) | Created only if missing — client-owned afterwards (e.g. `.platform/routes.yaml`, per-environment `settings.*.php`, `frontend/vitest.config.mts` — the project's wrapper around the shared ICMS Vitest config from `@iqual/nuxt-icms-dev`, where product specs are excluded or project specs added). |
-| `replace` | [`assets/replace`](../assets/replace) | Fully managed, overwritten on every scaffold run (e.g. `Makefile`, `.ddev/config.yaml`, `.platform/config.vcl`, CI workflows, `README.md`, `AGENTS.md`, `CLAUDE.md`). A template that renders empty (disabled feature flag) deletes the file. |
+| `replace` | [`assets/replace`](../assets/replace) | Fully managed, overwritten on every scaffold run (e.g. `Makefile`, `.ddev/config.yaml`, `.platform/config.vcl`, the Platform.sh hook scripts `drupal/scripts/*.sh`, CI workflows, `README.md`, `AGENTS.md`, `CLAUDE.md`). A template that renders empty (disabled feature flag) deletes the file. |
 | `merge` | [`assets/merge`](../assets/merge) | Structurally merged, preserving local additions and comments (root/`drupal/`/`frontend/` `.gitignore`, `.gitattributes`, `.platform/applications.yaml`, `.platform/services.yaml`, `.claude/settings.json`, VRT config). |
 
 ## Overriding files per project
