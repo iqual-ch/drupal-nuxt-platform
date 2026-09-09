@@ -304,9 +304,13 @@ frontend-bundle-%: ## Install Frontend bundle
 	echo -e " $(MSG_SUCCESS) Frontend bundle \"$*\" installed."
 {% if monorepo %}
 
-mono-bundle-preview: ## Create/update a bundle environment branch (BUNDLES=<name|all> BRANCH=<preview/...>)
+mono-bundle-preview: ## Create/update a bundle environment branch (BUNDLES=<name|all> BRANCH=<preview/...|demo/...>)
 	@echo -e " $(MSG_INFO) Creating bundle environment branch \"$(BRANCH)\""
 	bun run scripts/preview/index.ts --bundles "$(BUNDLES)" --branch "$(BRANCH)"
+
+mono-showcase: ## Create a showcase environment branch (CLIENT=<name> BUNDLES=<none|all|name> SPOT=<upsun machine name>)
+	@echo -e " $(MSG_INFO) Creating showcase environment branch \"showcase/$(CLIENT)\""
+	bun run scripts/preview/index.ts --bundles "$(BUNDLES)" --branch "showcase/$(CLIENT)" --showcase "$(CLIENT)" --spot "$(SPOT)"
 {% endif %}
 
 ## Maintenance
