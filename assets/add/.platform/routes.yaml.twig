@@ -1,4 +1,113 @@
 {% if deployment == "platform.sh" %}
+{% if routing.mode|default('varnish') == 'subdomain' %}
+{#
+    Routing data — the Drupal/frontend route split. Keep the lists identical
+    to .ddev/nginx_full/nginx-site.conf.twig (local); the paths below are
+    literal prefixes, the template adds the language prefix and boundary.
+    Project-specific additions go to extra.project-scaffold.routing.*.
+#}
+{% set languages = routing.languages|default(['de', 'fr', 'it', 'en']) %}
+{% set drupal_paths = [
+    'admin', 'api-docs', 'api/openai-ckeditor/completion', 'autocomplete',
+    'autologout', 'batch', 'big_pipe', 'block', 'comment', 'contextual',
+    'core', 'cron', 'devel', 'editor', 'entity', 'entity-browser',
+    'entity_reference_autocomplete', 'facets', 'file/progress', 'filter',
+    'geocoder', 'graphql', 'group', 'layout_builder', 'libraries', 'linkit',
+    'machine_name', 'masquerade', 'media', 'media-library', 'message',
+    'modules', 'multi-site', 'paragraphs_blokkli', 'quickedit', 'run-cron',
+    'scheduler', 'session', 'shs-term-data', 'sitemap', 'sitemap_generator',
+    'sites', 'storage',
+    'system', 'tagify_autocomplete', 'tagify_user_list_autocomplete', 'tfa',
+    'themes/contrib', 'themes/custom', 'tmgmt', 'token', 'toolbar',
+    'translate', 'unmasquerade', 'user', 'views', 'webform'
+] %}
+{% set drupal_entities = ['node', 'taxonomy/term', 'product', 'profile', 'file', 'store'] %}
+{% set drupal_operations = ['access', 'add', 'convertbundles', 'delete', 'edit', 'registrations', 'revisions', 'translations', 'variations', 'webform'] %}
+{% set lang_alt = languages|join('|') %}
+{# Kept on the frontend domain and routed to Drupal, like in the nginx template. #}
+{% set routed_paths = ['core', 'libraries', 'modules', 'sitemap', 'sitemap_generator', 'themes/contrib', 'themes/custom'] %}
+{% set redirect_paths_alt = drupal_paths|merge(routing.extra_drupal_paths|default([]))|filter(p => p not in routed_paths)|sort|join('|') %}
+{% set entities_alt = drupal_entities|merge(routing.extra_drupal_entities|default([]))|sort|join('|') %}
+{% set ops_alt = drupal_operations|merge(routing.extra_drupal_operations|default([]))|sort|join('|') %}
+{% set backend = routing.backend_subdomain|default('backend') %}
+# The frontend serves the public site; the Drupal backend lives on the
+# "{{ backend }}." subdomain (see docs/routing.md). Drupal paths requested on the
+# frontend domain redirect there — public files, the sitemap and Drupal's static
+# assets stay on the frontend domain and are routed to Drupal directly.
+"https://{default}/":
+    type: upstream
+    upstream: "frontend:http"
+    primary: true
+    id: frontend
+    cache:
+        enabled: false
+    tls:
+      strict_transport_security:
+          enabled: true
+          include_subdomains: true
+          preload: true
+    redirects:
+        paths:
+            '^/((?:(?:{{ lang_alt }})/)?(?:{{ redirect_paths_alt }})(?:[/?].*)?)$':
+                to: "https://{{ backend }}.{default}/$1$is_args$args"
+                regexp: true
+            '^/((?:(?:{{ lang_alt }})/)?(?:{{ entities_alt }})/add(?:[/?].*)?)$':
+                to: "https://{{ backend }}.{default}/$1$is_args$args"
+                regexp: true
+            '^/((?:(?:{{ lang_alt }})/)?(?:{{ entities_alt }})/[0-9]+/(?:{{ ops_alt }})(?:[/?].*)?)$':
+                to: "https://{{ backend }}.{default}/$1$is_args$args"
+                regexp: true
+            '^/((?:(?:{{ lang_alt }})/)?drupal-api(?:[/?].*)?)$':
+                to: "https://{{ backend }}.{default}/$1$is_args$args"
+                regexp: true
+
+"https://{default}/sites/default/files":
+    type: upstream
+    upstream: "drupal:http"
+    cache:
+        enabled: true
+    tls:
+      strict_transport_security:
+          enabled: true
+          include_subdomains: true
+          preload: true
+
+"https://{default}/sitemap.xml":
+    type: upstream
+    upstream: "drupal:http"
+    cache:
+        enabled: false
+    tls:
+      strict_transport_security:
+          enabled: true
+          include_subdomains: true
+          preload: true
+{% for path in ['sitemap_generator', 'core', 'libraries', 'modules', 'themes'] %}
+
+"https://{default}/{{ path }}":
+    type: upstream
+    upstream: "drupal:http"
+    cache:
+        enabled: true
+    tls:
+      strict_transport_security:
+          enabled: true
+          include_subdomains: true
+          preload: true
+{% endfor %}
+
+"https://{{ backend }}.{default}/":
+    type: upstream
+    upstream: "drupal:http"
+    id: backend
+    cache:
+        enabled: false
+    tls:
+      strict_transport_security:
+          enabled: true
+          include_subdomains: true
+          preload: true
+{% else %}
 "https://{default}/":
     type: upstream
     upstream: "varnish:http"
@@ -9,6 +118,7 @@
           enabled: true
           include_subdomains: true
           preload: true
+{% endif %}
 
 # Cloudflare Images proxy, if domain is not on CF.
 "https://{default}/cdn-cgi/image":

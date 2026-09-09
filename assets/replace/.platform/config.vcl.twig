@@ -1,4 +1,4 @@
-{% if deployment == "platform.sh" %}
+{% if deployment == "platform.sh" and routing.mode|default('varnish') == 'varnish' %}
 {#
     Routing data — single source for the Drupal/frontend route split.
     Keep this block identical in .platform/config.vcl.twig (production)

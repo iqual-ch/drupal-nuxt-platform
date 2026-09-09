@@ -15,9 +15,21 @@ if [ -n "$PLATFORM_ENVIRONMENT_TYPE" ]; then
   export APP_ENV="$PLATFORM_ENVIRONMENT_TYPE"
 fi
 
-# Set the Drush URI
+# Set the Drush URI. With the Drupal backend on its own domain (route id
+# "backend", see docs/routing.md) Drush and Drupal's own URLs use that domain,
+# while DRUPAL_FRONTEND_URL points at the public site for redirects and the
+# sitemap.
 if [ -n "$PLATFORM_PROJECT" ]; then
-    export DRUSH_OPTIONS_URI=$(echo $PLATFORM_ROUTES | base64 --decode | jq -r 'to_entries[] | select (.value.primary == true) | .key')
+    PLATFORM_ROUTES_JSON=$(echo $PLATFORM_ROUTES | base64 --decode)
+    PLATFORM_PRIMARY_ROUTE=$(echo "$PLATFORM_ROUTES_JSON" | jq -r 'to_entries[] | select (.value.primary == true) | .key')
+    PLATFORM_BACKEND_ROUTE=$(echo "$PLATFORM_ROUTES_JSON" | jq -r 'to_entries[] | select (.value.id == "backend") | .key' | head -n 1)
+    if [ -n "$PLATFORM_BACKEND_ROUTE" ]; then
+        export DRUSH_OPTIONS_URI=${PLATFORM_BACKEND_ROUTE%/}
+        export DRUPAL_BACKEND_URL=${PLATFORM_BACKEND_ROUTE%/}
+        export DRUPAL_FRONTEND_URL=${PLATFORM_PRIMARY_ROUTE%/}
+    else
+        export DRUSH_OPTIONS_URI=$PLATFORM_PRIMARY_ROUTE
+    fi
 fi
 
 # Set a PS1 for interactive sessions

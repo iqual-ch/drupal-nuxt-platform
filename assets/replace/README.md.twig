@@ -8,6 +8,9 @@ Decoupled **Drupal** backend (`drupal/`) + **Nuxt** frontend (`frontend/`), buil
 
 * [Live URL]({{ url }}/)
 * [Local URL](https://{{ name }}.ddev.site/)
+{% if routing.mode|default('varnish') == 'subdomain' %}
+* [Local Drupal backend](https://{{ routing.backend_subdomain|default('backend') }}.{{ name }}.ddev.site/)
+{% endif %}
 
 ## Prerequisites
 

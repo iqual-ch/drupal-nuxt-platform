@@ -5,6 +5,7 @@ db:
     disk: 2048
     # Upsun Medium plan default (ICMS-694).
     size: L
+{% if routing.mode|default('varnish') == 'varnish' %}
 
 varnish:
     type: varnish:7.3
@@ -17,6 +18,7 @@ varnish:
         vcl: !include
             type: string
             path: config.vcl
+{% endif %}
 {% else %}
 db:
     type: 'mariadb:{{ runtime.db_version }}'
