@@ -28,6 +28,13 @@
 {% set drupal_operations = ['access', 'add', 'convertbundles', 'delete', 'edit', 'registrations', 'revisions', 'translations', 'variations', 'webform'] %}
 {% set lang_alt = languages|join('|') %}
 {% set paths_alt = drupal_paths|merge(routing.extra_drupal_paths|default([]))|sort|join('|') %}
+{#
+    Drupal path prefixes match when followed by a sub-path (/media/1/edit); the
+    bare prefix can be a content page of the frontend (/media). Only prefixes
+    Drupal serves bare — and project additions — match on their own.
+#}
+{% set bare_paths = ['admin', 'api-docs', 'api/openai-ckeditor/completion', 'batch', 'devel', 'graphql', 'masquerade', 'media-library', 'run-cron', 'sitemap', 'unmasquerade', 'user'] %}
+{% set bare_alt = bare_paths|merge(routing.extra_drupal_paths|default([]))|sort|join('|') %}
 {% set entities_alt = drupal_entities|merge(routing.extra_drupal_entities|default([]))|sort|join('|') %}
 {% set ops_alt = drupal_operations|merge(routing.extra_drupal_operations|default([]))|sort|join('|') %}
 import xkey;
@@ -106,7 +113,8 @@ sub vcl_recv {
     if (req.url ~ "^/sitemap\.xml([?]|$)" ||
         req.url ~ "^/sites/default/files" ||
         req.url ~ "^((/({{ lang_alt }}))?/graphql([/?]|$))" ||
-        req.url ~ "^((/({{ lang_alt }}))?/({{ paths_alt }})([/?]|$))" ||
+        req.url ~ "^((/({{ lang_alt }}))?/({{ paths_alt }})/)" ||
+        req.url ~ "^((/({{ lang_alt }}))?/({{ bare_alt }})([/?]|$))" ||
         req.url ~ "^/(({{ lang_alt }})/)?({{ entities_alt }})/add([/?]|$)" ||
         req.url ~ "^/(({{ lang_alt }})/)?({{ entities_alt }})/[0-9]+/({{ ops_alt }})([/?]|$)" ||
         req.url ~ "^((/({{ lang_alt }}))?/drupal-api([/?]|$))"

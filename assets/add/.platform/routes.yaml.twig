@@ -27,6 +27,13 @@
 {# Kept on the frontend domain and routed to Drupal, like in the nginx template. #}
 {% set routed_paths = ['core', 'libraries', 'modules', 'sitemap', 'sitemap_generator', 'themes/contrib', 'themes/custom'] %}
 {% set redirect_paths_alt = drupal_paths|merge(routing.extra_drupal_paths|default([]))|filter(p => p not in routed_paths)|sort|join('|') %}
+{#
+    Drupal path prefixes match when followed by a sub-path (/media/1/edit); the
+    bare prefix can be a content page of the frontend (/media). Only prefixes
+    Drupal serves bare — and project additions — match on their own.
+#}
+{% set bare_paths = ['admin', 'api-docs', 'api/openai-ckeditor/completion', 'batch', 'devel', 'graphql', 'masquerade', 'media-library', 'run-cron', 'sitemap', 'unmasquerade', 'user'] %}
+{% set bare_alt = bare_paths|merge(routing.extra_drupal_paths|default([]))|sort|join('|') %}
 {% set entities_alt = drupal_entities|merge(routing.extra_drupal_entities|default([]))|sort|join('|') %}
 {% set ops_alt = drupal_operations|merge(routing.extra_drupal_operations|default([]))|sort|join('|') %}
 {% set backend = routing.backend_subdomain|default('backend') %}
@@ -48,7 +55,10 @@
           preload: true
     redirects:
         paths:
-            '^/((?:(?:{{ lang_alt }})/)?(?:{{ redirect_paths_alt }})(?:[/?].*)?)$':
+            '^/((?:(?:{{ lang_alt }})/)?(?:{{ redirect_paths_alt }})/.*)$':
+                to: "https://{{ backend }}.{default}/$1$is_args$args"
+                regexp: true
+            '^/((?:(?:{{ lang_alt }})/)?(?:{{ bare_alt }})(?:[/?].*)?)$':
                 to: "https://{{ backend }}.{default}/$1$is_args$args"
                 regexp: true
             '^/((?:(?:{{ lang_alt }})/)?(?:{{ entities_alt }})/add(?:[/?].*)?)$':
