@@ -5,6 +5,7 @@
 # Base config copied from here:
 # https://github.com/lando/drupal/blob/main/recipes/drupal8/default.conf.tpl
 {% set languages = routing.languages|default(['de', 'fr', 'it', 'en']) %}
+{% set lang_alt = languages|join('|') %}
 
 # Check if a X-Forwarded-Host header (set by reverse-proxy) is already present. If not take the value of the 'Host' header.
 map $http_x_forwarded_host $proxy_x_forwarded_host {
