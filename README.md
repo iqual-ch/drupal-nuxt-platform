@@ -54,7 +54,7 @@ Notable variables:
 * `name` — project code name (replaces e.g. the DDEV project name).
 * `url` — live URL of the website.
 * `monorepo` — `true` only in the ICMS development monorepo; toggles workspace-specific behavior (e.g. `@workspace:*` frontend dependencies).
-* `routing.*` — frontend/backend routing: `mode` (`subdomain` or legacy `varnish`), `backend_subdomain`, languages and additional Drupal paths.
+* `routing.languages` — site languages (URL prefixes, `/` redirect).
 * `runtime.*` — PHP, database, Node.js, Elasticsearch and Memcached runtime settings.
 * `workflows.*` — feature flags for the shipped CI/CD workflows.
 * `ai.*` — feature flags for AI assistant integration (`AGENTS.md`, Claude, Copilot).

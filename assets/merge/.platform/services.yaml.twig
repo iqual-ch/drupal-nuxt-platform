@@ -5,20 +5,6 @@ db:
     disk: 2048
     # Upsun Medium plan default (ICMS-694).
     size: L
-{% if routing.mode|default('varnish') == 'varnish' %}
-
-varnish:
-    type: varnish:7.3
-    # Upsun Medium plan default (ICMS-694).
-    size: M
-    relationships:
-        drupal: 'drupal:http'
-        frontend: 'frontend:http'
-    configuration:
-        vcl: !include
-            type: string
-            path: config.vcl
-{% endif %}
 {% else %}
 db:
     type: 'mariadb:{{ runtime.db_version }}'

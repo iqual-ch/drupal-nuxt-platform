@@ -4,56 +4,7 @@
 
 # Base config copied from here:
 # https://github.com/lando/drupal/blob/main/recipes/drupal8/default.conf.tpl
-{#
-    Routing data — single source for the Drupal/frontend route split.
-    Keep this block identical in .platform/config.vcl.twig (production)
-    and .ddev/nginx_full/nginx-site.conf.twig (local).
-
-    Values are literal path prefixes (no regex); the templates add the
-    language prefix and the ([/?]|$) boundary. Project-specific additions
-    go to extra.project-scaffold.routing.* — see docs/configuration.md.
-#}
 {% set languages = routing.languages|default(['de', 'fr', 'it', 'en']) %}
-{% set drupal_paths = [
-    'admin', 'api-docs', 'api/openai-ckeditor/completion', 'autocomplete',
-    'autologout', 'batch', 'big_pipe', 'block', 'comment', 'contextual',
-    'core', 'cron', 'devel', 'editor', 'entity', 'entity-browser',
-    'entity_browser', 'entity_reference_autocomplete', 'facets',
-    'file/progress', 'filter',
-    'geocoder', 'graphql', 'group', 'layout_builder', 'libraries', 'linkit',
-    'machine_name', 'masquerade', 'media', 'media-library', 'message',
-    'modules', 'multi-site', 'paragraphs_blokkli', 'quickedit', 'run-cron',
-    'scheduler', 'session', 'shs-term-data', 'sitemap', 'sitemap_generator',
-    'sites', 'storage',
-    'system', 'tagify_autocomplete', 'tagify_user_list_autocomplete', 'tfa',
-    'themes/contrib', 'themes/custom', 'tmgmt', 'token', 'toolbar',
-    'translate', 'unmasquerade', 'user', 'views', 'webform'
-] %}
-{% set drupal_entities = ['node', 'taxonomy/term', 'product', 'profile', 'file', 'store'] %}
-{% set drupal_operations = ['access', 'add', 'convertbundles', 'delete', 'edit', 'registrations', 'revisions', 'translations', 'variations', 'webform'] %}
-{% set lang_alt = languages|join('|') %}
-{% set paths_alt = drupal_paths|merge(routing.extra_drupal_paths|default([]))|sort|join('|') %}
-{#
-    Drupal path prefixes match when followed by a sub-path (/media/1/edit); the
-    bare prefix can be a content page of the frontend (/media). Only prefixes
-    Drupal serves bare — and project additions — match on their own.
-#}
-{% set bare_paths = ['admin', 'api-docs', 'api/openai-ckeditor/completion', 'batch', 'devel', 'graphql', 'masquerade', 'media-library', 'run-cron', 'sitemap', 'unmasquerade', 'user'] %}
-{% set bare_alt = bare_paths|merge(routing.extra_drupal_paths|default([]))|sort|join('|') %}
-{% set entities_alt = drupal_entities|merge(routing.extra_drupal_entities|default([]))|sort|join('|') %}
-{% set ops_alt = drupal_operations|merge(routing.extra_drupal_operations|default([]))|sort|join('|') %}
-{% set subdomain = routing.mode|default('varnish') == 'subdomain' %}
-{% set backend_subdomain = routing.backend_subdomain|default('backend') %}
-{#
-    In subdomain mode, Drupal paths the frontend domain must keep serving itself
-    (routed to Drupal): the sitemap (its XSL must be same-origin) and static
-    assets of modules, themes and libraries (the admin toolbar loads icons from
-    them, a redirect would make that a blocked cross-origin fetch). Every other
-    Drupal path redirects to the backend domain.
-#}
-{% set routed_paths = ['core', 'libraries', 'modules', 'sitemap', 'sitemap_generator', 'themes/contrib', 'themes/custom'] %}
-{% set routed_paths_alt = routed_paths|sort|join('|') %}
-{% set redirect_paths_alt = drupal_paths|merge(routing.extra_drupal_paths|default([]))|filter(p => p not in routed_paths)|sort|join('|') %}
 
 # Check if a X-Forwarded-Host header (set by reverse-proxy) is already present. If not take the value of the 'Host' header.
 map $http_x_forwarded_host $proxy_x_forwarded_host {
@@ -352,9 +303,9 @@ server {
 
 # frontend (default)
 server {
-  listen 80{% if subdomain %} default_server{% endif %};
-  listen 443 ssl http2{% if subdomain %} default_server{% endif %};
-  listen [::]:443 ssl http2{% if subdomain %} default_server{% endif %};
+  listen 80 default_server;
+  listen 443 ssl http2 default_server;
+  listen [::]:443 ssl http2 default_server;
   large_client_header_buffers 4 32k;
   server_tokens off;
 
@@ -473,64 +424,17 @@ server {
     try_files $uri $uri/ @drupal;
   }
 
-{% if subdomain %}
-  # The sitemap (same-origin XSL) and Drupal's static assets stay on the
-  # frontend domain.
-  location ~ "^((/({{ lang_alt }}))?/({{ routed_paths_alt }})([/?]|$))" {
+  # Drupal's editorial entry points requested on the frontend domain redirect
+  # to the backend domain; every other Drupal path the frontend hands over
+  # itself (see docs/routing.md).
+  location ~ "^/([a-z]{2}/)?(admin|user)([/?]|$)" {
+    return 302 https://backend.$host$request_uri;
+  }
+
+  # The sitemap's XSL must be same-origin (/sitemap.xml is handled above).
+  location ^~ /sitemap_generator {
     try_files "" @drupal;
   }
-
-  # Everything else Drupal serves lives on the backend domain.
-  location ~ "^((/({{ lang_alt }}))?/({{ redirect_paths_alt }})/)" {
-    return 302 https://{{ backend_subdomain }}.$host$request_uri;
-  }
-
-  location ~ "^((/({{ lang_alt }}))?/({{ bare_alt }})([/?]|$))" {
-    return 302 https://{{ backend_subdomain }}.$host$request_uri;
-  }
-
-  location ~ "^/(({{ lang_alt }})/)?({{ entities_alt }})/add([/?]|$)" {
-    return 302 https://{{ backend_subdomain }}.$host$request_uri;
-  }
-
-  location ~ "^/(({{ lang_alt }})/)?({{ entities_alt }})/[0-9]+/({{ ops_alt }})([/?]|$)" {
-    return 302 https://{{ backend_subdomain }}.$host$request_uri;
-  }
-
-  location ~ "^((/({{ lang_alt }}))?/drupal-api([/?]|$))" {
-    return 302 https://{{ backend_subdomain }}.$host$request_uri;
-  }
-{% else %}
-  location ~ "^((/({{ lang_alt }}))?/graphql([/?]|$))" {
-    auth_basic off;
-    allow all; # Allow all to see content
-    try_files "" @drupal;
-  }
-
-  location ~ "^((/({{ lang_alt }}))?/({{ paths_alt }})/)" {
-    try_files ""  @drupal;
-  }
-
-  location ~ "^((/({{ lang_alt }}))?/({{ bare_alt }})([/?]|$))" {
-    try_files ""  @drupal;
-  }
-
-  location ~ "^/(({{ lang_alt }})/)?({{ entities_alt }})/add([/?]|$)" {
-    try_files "" @drupal;
-  }
-
-  location ~ "^/(({{ lang_alt }})/)?({{ entities_alt }})/[0-9]+/({{ ops_alt }})([/?]|$)" {
-    try_files "" @drupal;
-  }
-
-  
-
-  location ~ "^((/({{ lang_alt }}))?/drupal-api([/?]|$))" {
-    proxy_intercept_errors off;
-    auth_basic off;
-    proxy_pass http://localhost:8888;
-  }
-{% endif %}
 
   location /api {
     proxy_intercept_errors off;
@@ -576,9 +480,8 @@ server {
   }
 
 }
-{% if subdomain %}
 
-# backend: the Drupal site on its own hostname ("{{ backend_subdomain }}." + project
+# backend: the Drupal site on its own hostname ("backend." + project
 # hostname, also in worktrees), proxied to the Drupal server above.
 server {
   listen 80;
@@ -587,7 +490,7 @@ server {
   large_client_header_buffers 4 32k;
   server_tokens off;
 
-  server_name ~^{{ backend_subdomain }}\.;
+  server_name ~^backend\.;
 
   ssl_certificate           /etc/ssl/certs/master.crt;
   ssl_certificate_key       /etc/ssl/certs/master.key;
@@ -624,4 +527,3 @@ server {
     proxy_pass http://localhost:8888;
   }
 }
-{% endif %}

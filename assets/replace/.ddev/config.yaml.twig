@@ -1,18 +1,12 @@
-{% set subdomain = routing.mode|default('varnish') == 'subdomain' %}
-{% set backend_subdomain = routing.backend_subdomain|default('backend') %}
 name: {{ name }}
 type: drupal
 docroot: drupal/docroot
 php_version: "{{ runtime.php_version }}"
 webserver_type: nginx-fpm
 xdebug_enabled: false
-{% if subdomain %}
 # The Drupal backend is served on its own hostname (see docs/routing.md).
 additional_hostnames:
-    - {{ backend_subdomain }}.{{ name }}
-{% else %}
-additional_hostnames: []
-{% endif %}
+    - backend.{{ name }}
 additional_fqdns: []
 database:
     type: mariadb
@@ -32,15 +26,11 @@ web_environment:
     - DRUPAL_SPOT_ORIGIN={{ url }}
 {% endif %}
     - NODE_ENV=development
-{% if subdomain %}
     - NUXT_BACKEND_URL=http://localhost:8888
-    - NUXT_PUBLIC_DRUPAL_URL=https://{{ backend_subdomain }}.$DDEV_SITENAME.$DDEV_TLD
+    - NUXT_PUBLIC_DRUPAL_URL=https://backend.$DDEV_SITENAME.$DDEV_TLD
     - DRUPAL_FRONTEND_URL=$DDEV_PRIMARY_URL
-    - DRUPAL_BACKEND_URL=https://{{ backend_subdomain }}.$DDEV_SITENAME.$DDEV_TLD
-    - DRUSH_OPTIONS_URI=https://{{ backend_subdomain }}.$DDEV_SITENAME.$DDEV_TLD
-{% else %}
-    - NUXT_BACKEND_URL=http://localhost
-{% endif %}
+    - DRUPAL_BACKEND_URL=https://backend.$DDEV_SITENAME.$DDEV_TLD
+    - DRUSH_OPTIONS_URI=https://backend.$DDEV_SITENAME.$DDEV_TLD
     - NUXT_REQUEST_HOST=$DDEV_SITENAME.$DDEV_TLD
     - DRUPAL_GRAPHQL_TOKEN=local-development
     - NUXT_MULTI_CACHE_API_AUTHORIZATION_TOKEN=local-development
@@ -49,11 +39,6 @@ web_environment:
 {% endif %}
     - NUXT_PUBLIC_IMAGE_BASE_URL={{ url }}
     - SIMPLETEST_DB=$DDEV_DATABASE_FAMILY://db:db@db/db
-{% if subdomain %}
-    - SIMPLETEST_BASE_URL=https://{{ backend_subdomain }}.$DDEV_SITENAME.$DDEV_TLD
-    - DTT_BASE_URL=https://{{ backend_subdomain }}.$DDEV_SITENAME.$DDEV_TLD
-{% else %}
-    - SIMPLETEST_BASE_URL=$DDEV_PRIMARY_URL
-    - DTT_BASE_URL=$DDEV_PRIMARY_URL
-{% endif %}
+    - SIMPLETEST_BASE_URL=https://backend.$DDEV_SITENAME.$DDEV_TLD
+    - DTT_BASE_URL=https://backend.$DDEV_SITENAME.$DDEV_TLD
     - DTT_SCREENSHOT_REPORT_DIRECTORY=/var/www/html/drupal/docroot/sites/simpletest/browser_output
