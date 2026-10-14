@@ -827,12 +827,21 @@ if (file_exists($app_root . '/' . $site_path . '/settings.platformsh.php')) {
   include $app_root . '/' . $site_path . '/settings.platformsh.php';
 }
 
-$settings['reverse_proxy'] = TRUE;
-$settings['reverse_proxy_addresses'] = [$_SERVER['REMOTE_ADDR'] ?? ''];
-// See https://symfony.com/doc/current/deployment/proxies.html.
-$settings['reverse_proxy_trusted_headers'] = Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_FORWARDED;
-
 $settings['access_graphql.token'] = getenv('DRUPAL_GRAPHQL_TOKEN');
+
+// Forwarded headers are only trusted on requests from the Nuxt frontend, which
+// proves itself with the GraphQL token it already shares with Drupal
+// (DRUPAL_GRAPHQL_TOKEN, see docs/routing.md). Any other peer, including a
+// client on the backend domain, could set them. Requests through the
+// Platform.sh router need no proxy trust: its X-Client-IP and X-Client-SSL
+// headers already provide REMOTE_ADDR and HTTPS. X-Forwarded-For,
+// X-Forwarded-Port and Forwarded are never trusted: REMOTE_ADDR already is the
+// client IP, and clients can set them.
+// See https://symfony.com/doc/current/deployment/proxies.html.
+$settings['reverse_proxy'] = !empty($settings['access_graphql.token']) && hash_equals((string) $settings['access_graphql.token'], (string) ($_SERVER['HTTP_X_DRUPAL_GRAPHQL_TOKEN'] ?? ''));
+$settings['reverse_proxy_addresses'] = [$_SERVER['REMOTE_ADDR'] ?? ''];
+$settings['reverse_proxy_trusted_headers'] = Request::HEADER_X_FORWARDED_HOST | Request::HEADER_X_FORWARDED_PROTO;
+
 $config['tmgmt.translator.deepl_pro']['settings']['auth_key'] = getenv('DEEPL_AUTH_KEY');
 
 // Files that have no remaining usages will be deleted by cron

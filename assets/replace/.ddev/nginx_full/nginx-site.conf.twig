@@ -7,12 +7,6 @@
 {% set languages = routing.languages|default(['de', 'fr', 'it', 'en']) %}
 {% set lang_alt = languages|join('|') %}
 
-# Check if a X-Forwarded-Host header (set by reverse-proxy) is already present. If not take the value of the 'Host' header.
-map $http_x_forwarded_host $proxy_x_forwarded_host {
-    default $http_x_forwarded_host;
-    ""      $http_host;
-}
-
 map $http_x_forwarded_proto $proxy_x_forwarded_proto {
   default $http_x_forwarded_proto;
   ''      $scheme;
@@ -254,6 +248,10 @@ server {
     # fastcgi_read_timeout should match max_execution_time in php.ini
     fastcgi_read_timeout 10m;
     fastcgi_param SERVER_NAME $host;
+    # Every request reaches DDEV over HTTPS, like the Platform.sh router's
+    # X-Client-SSL: Drupal does not trust X-Forwarded-Proto from this proxy
+    # (see docs/routing.md).
+    fastcgi_param HTTPS on;
   }
 
   # Prevent clients from accessing to backup/config/source files
@@ -349,7 +347,7 @@ server {
   proxy_set_header      Upgrade $http_upgrade;
   proxy_set_header      Connection $proxy_connection;
   proxy_set_header      X-Real-IP $remote_addr;
-  proxy_set_header      X-Forwarded-Host $proxy_x_forwarded_host;
+  proxy_set_header      X-Forwarded-Host $host;
   proxy_set_header      X-Forwarded-For $proxy_add_x_forwarded_for;
   proxy_set_header      X-Forwarded-Proto https;
   proxy_set_header      X-Forwarded-Ssl on;
@@ -513,7 +511,7 @@ server {
   proxy_http_version    1.1;
   proxy_set_header      Host $host;
   proxy_set_header      X-Real-IP $remote_addr;
-  proxy_set_header      X-Forwarded-Host $proxy_x_forwarded_host;
+  proxy_set_header      X-Forwarded-Host $host;
   proxy_set_header      X-Forwarded-For $proxy_add_x_forwarded_for;
   proxy_set_header      X-Forwarded-Proto https;
   proxy_set_header      X-Forwarded-Ssl on;
