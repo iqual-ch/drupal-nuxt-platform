@@ -139,11 +139,16 @@ drupal:
                   ^/sites/default/files/(css|js):
                       expires: 2w
 
+  # Crons of one container run one at a time. Drupal's cron runs every 15
+  # minutes; the purge queue is worked separately every 5 minutes (the
+  # minimum), so edits reach the frontend caches without waiting for cron.
   crons:
-      # Run Drupals cron tasks every 5 minutes.
       drupal:
-          spec: '*/5 * * * *'
+          spec: '*/15 * * * *'
           cmd: 'cd docroot ; drush core-cron'
+      purge:
+          spec: '*/5 * * * *'
+          cmd: 'cd docroot ; timeout 900 drush p:queue-work --finish --no-interaction'
 
   source:
       root: drupal
@@ -185,6 +190,15 @@ frontend:
   web:
     commands:
       start: 'bun .output/server/index.mjs'
+    locations:
+      /:
+        passthru: true
+      # Build assets (content-hashed) are served by nginx, not by Bun. A
+      # missing file is a cheap 404.
+      /_nuxt:
+        root: .output/public/_nuxt
+        passthru: false
+        expires: 1y
 
   source:
       root: frontend
