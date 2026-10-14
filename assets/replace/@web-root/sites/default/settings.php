@@ -855,6 +855,13 @@ if (getenv('IS_DDEV_PROJECT') == 'true' && is_readable($ddev_settings)) {
   require $ddev_settings;
 }
 
+// In DDEV, Nuxt runs in the same web container: purge it there.
+if (getenv('IS_DDEV_PROJECT') == 'true') {
+  $config['nuxt_multi_cache.settings']['endpoint'] = 'http://localhost:3000/api/multi-cache';
+  $config['nuxt_multi_cache.settings']['token'] = getenv('NUXT_MULTI_CACHE_API_AUTHORIZATION_TOKEN');
+  $config['nuxt_multi_cache.settings']['frontend'] = getenv('DDEV_PRIMARY_URL');
+}
+
 /**
  * Include project-specific overrides last, so they can override any setting
  * above. This file is owned by the project and never scaffolded; settings.php
