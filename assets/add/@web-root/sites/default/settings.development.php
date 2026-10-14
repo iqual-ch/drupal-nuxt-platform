@@ -7,12 +7,9 @@ $platformsh = new Config();
 if ($platformsh->inRuntime()) {
     $route = $platformsh->getPrimaryRoute();
     $base_url = rtrim($route['url'], '/');
-    $base_hostname = parse_url($base_url, PHP_URL_HOST);
     $config['nuxt_multi_cache.settings']['endpoint'] = $base_url . '/api/multi-cache';
     $config['nuxt_multi_cache.settings']['token'] = getenv('NUXT_MULTI_CACHE_API_AUTHORIZATION_TOKEN');
     $config['nuxt_multi_cache.settings']['frontend'] = $base_url;
-    $config['purge_purger_http.settings.6e9bab7e94']['hostname'] = $base_hostname;
-    $config['purge_purger_http.settings.db61c08540']['hostname'] = $base_hostname;
 }
 
 ## Custom Settings for DEV Environment

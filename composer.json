@@ -54,8 +54,7 @@
             },
             "drupal_spot": "main-bvxea6i",
             "routing": {
-                "extra_drupal_paths": [],
-                "extra_drupal_entities": []
+                "cache": "none"
             },
             "assets": {
                 "add": "assets/add",

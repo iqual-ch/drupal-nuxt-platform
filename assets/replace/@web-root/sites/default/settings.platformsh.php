@@ -132,6 +132,18 @@ if ($platformsh->inRuntime()) {
   // Set the deployment identifier, which is used by some Drupal cache systems.
   $settings['deployment_identifier'] = $settings['deployment_identifier'] ?? $platformsh->treeId;
 
+  // Enable the Varnish tag purger only behind Varnish (routing.cache: varnish).
+  // It purges through the router, see docs/routing.md.
+  $primary_route = $platformsh->getPrimaryRoute();
+  if (($primary_route['type'] ?? '') === 'upstream' && explode(':', $primary_route['upstream'] ?? '')[0] === 'varnish') {
+    $config['purge.plugins']['purgers']['icms_varnish'] = [
+      'instance_id' => '6e9bab7e94',
+      'plugin_id' => 'httpbundled',
+      'order_index' => 100,
+    ];
+    $config['purge_purger_http.settings.6e9bab7e94']['hostname'] = parse_url($primary_route['url'], PHP_URL_HOST);
+  }
+
   // Enable adding domain record hostname overrides for development environments
   // by setting an "domain.record" attribute on a route.
   if (getenv('PLATFORM_ENVIRONMENT_TYPE') != 'production') {

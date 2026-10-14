@@ -9,6 +9,12 @@ NUXT_REQUEST_ROUTE=${NUXT_REQUEST_URL%/}
 export NUXT_REQUEST_HOST=${NUXT_REQUEST_ROUTE#https://}
 export NUXT_PUBLIC_IMAGE_BASE_URL="${NUXT_PUBLIC_IMAGE_BASE_URL:-$NUXT_REQUEST_ROUTE}"
 
+# Behind Varnish (routing.cache: varnish), Nuxt sends the shared-cache headers.
+NUXT_REQUEST_UPSTREAM=$(echo $PLATFORM_ROUTES | base64 --decode | jq -r 'to_entries[] | select (.value.primary == true) | .value.upstream // empty')
+if [ -z "${NUXT_PAGE_CACHE_MODE:-}" ] && [ "${NUXT_REQUEST_UPSTREAM%%:*}" = "varnish" ]; then
+    export NUXT_PAGE_CACHE_MODE=varnish
+fi
+
 # Set a PS1 for interactive sessions
 if [ -n "$PS1" ] && [ -n "$PLATFORM_PROJECT" ] && [ "$PLATFORM_APPLICATION_NAME" = "frontend" ]; then
     # Display platform environment and colorize by type

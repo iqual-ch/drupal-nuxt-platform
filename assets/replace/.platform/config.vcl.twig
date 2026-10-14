@@ -1,5 +1,139 @@
 {#-
-    Intentionally empty: ICMS 1.7 dropped Varnish (ICMS-268, see docs/routing.md).
-    An asset that renders empty makes the scaffold delete the generated
-    .platform/config.vcl of existing projects.
+    Varnish cache in front of the Nuxt frontend (`routing.cache: varnish`).
+    Also rendered in the monorepo, where tests/varnish tests it.
 -#}
+{% if deployment == "platform.sh" and (routing.cache|default('none') == 'varnish' or monorepo) %}
+{% set region = platformsh_config.region|default('ch-1') %}
+{% set outbound_ips = {
+    'ch-1': ['34.65.236.213', '34.65.152.61', '34.65.244.185', '34.65.197.163', '34.65.144.16', '34.65.72.28'],
+}[region]|default([]) %}
+# Managed by iqual/drupal-nuxt-platform, see docs/routing.md.
+import xkey;
+
+# Drupal purges through the router (it can't have a relationship to Varnish),
+# so its requests come from the outbound IPs of the region ({{ region }}).
+acl purge {
+    "localhost";
+{% for ip in outbound_ips %}
+    "{{ ip }}";
+{% endfor %}
+}
+
+sub vcl_recv {
+    set req.backend_hint = frontend.backend();
+
+    # Never trust a client-supplied value.
+    set req.http.X-Forwarded-Host = req.http.host;
+    set req.http.X-Forwarded-For = req.http.X-Client-IP;
+
+    if (req.method == "BAN") {
+        if (!std.ip(req.http.X-Client-IP, "0.0.0.0") ~ purge) {
+            return (synth(403, "Forbidden"));
+        }
+        if (!req.http.xkey) {
+            return (synth(400, "Missing xkey header"));
+        }
+        set req.http.n-gone = xkey.softpurge(req.http.xkey);
+        return (synth(200, "Invalidated " + req.http.n-gone + " objects"));
+    }
+
+    if (req.method != "GET" && req.method != "HEAD") {
+        return (pass);
+    }
+
+    if (req.http.Authorization ||
+        req.http.Cookie ~ "(^|;\s*)S?SESS[a-zA-Z0-9_-]+=" ||
+        req.url ~ "^/blokkli" ||
+        req.url ~ "[?&]blokkli(Editing|Preview)([=&]|$)" ||
+        req.url ~ "^/api/(multi-cache|icms/blokkli)([/?]|$)") {
+        set req.http.X-Cache-Hint = "BYPASS";
+        return (pass);
+    }
+
+    unset req.http.Cookie;
+
+    if (req.url ~ "^/(_nuxt|fonts)/") {
+        set req.http.X-Static-File = "true";
+    }
+
+    return (hash);
+}
+
+sub vcl_backend_response {
+    if (beresp.status >= 500) {
+        if (bereq.is_bgfetch) {
+            # Keep serving the stale object.
+            return (abandon);
+        }
+        set beresp.ttl = 2s;
+        set beresp.grace = 1m;
+        return (deliver);
+    }
+
+    if (bereq.http.X-Static-File == "true" && beresp.status == 200) {
+        set beresp.ttl = 365d;
+        unset beresp.http.Set-Cookie;
+        return (deliver);
+    }
+
+    # Only cache what the frontend marks with s-maxage; it sets the TTL.
+    if (beresp.http.Set-Cookie ||
+        beresp.http.Cache-Control !~ "s-maxage=[1-9]" ||
+        beresp.http.Cache-Control ~ "private|no-store|no-cache" ||
+        beresp.http.Vary == "*") {
+        set beresp.ttl = 120s;
+        set beresp.uncacheable = true;
+        set beresp.http.X-Varnish-Cache = "BYPASS";
+        return (deliver);
+    }
+
+    if (beresp.http.Cache-Tag) {
+        set beresp.http.xkey = beresp.http.Cache-Tag;
+        unset beresp.http.Cache-Tag;
+    }
+
+    set beresp.grace = 15m;
+    return (deliver);
+}
+
+sub vcl_hit {
+    if (obj.ttl <= 0s && obj.grace > 0s) {
+        set req.http.X-Cache-Hint = "STALE";
+    }
+}
+
+sub vcl_deliver {
+    # Browsers get the same max-age as without Varnish, counted from now.
+    if (resp.http.Cache-Control ~ "s-maxage") {
+        if (obj.uncacheable || resp.status >= 500 || req.http.X-Static-File == "true") {
+            set resp.http.Cache-Control = regsub(resp.http.Cache-Control, "\s*,\s*s-maxage=[0-9]+|s-maxage=[0-9]+\s*,?\s*", "");
+        }
+        else {
+            set resp.http.Cache-Control = "public, max-age=300";
+            unset resp.http.Age;
+        }
+    }
+    unset resp.http.Cache-Tag;
+    unset resp.http.xkey;
+    unset resp.http.Purge-Cache-Tags;
+    unset resp.http.Via;
+    unset resp.http.X-Varnish;
+
+    if (obj.hits > 0) {
+        if (req.http.X-Cache-Hint == "STALE") {
+            set resp.http.X-Varnish-Cache = "STALE";
+        }
+        else {
+            set resp.http.X-Varnish-Cache = "HIT";
+        }
+    }
+    elseif (!resp.http.X-Varnish-Cache) {
+        if (req.http.X-Cache-Hint == "BYPASS") {
+            set resp.http.X-Varnish-Cache = "BYPASS";
+        }
+        else {
+            set resp.http.X-Varnish-Cache = "MISS";
+        }
+    }
+}
+{% endif %}

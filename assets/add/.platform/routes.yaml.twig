@@ -6,7 +6,7 @@
 # frontend domain and are routed to Drupal directly.
 "https://{default}/":
     type: upstream
-    upstream: "frontend:http"
+    upstream: "{{ routing.cache|default('none') == 'varnish' ? 'varnish:http' : 'frontend:http' }}"
     primary: true
     id: frontend
     cache:

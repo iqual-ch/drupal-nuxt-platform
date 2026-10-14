@@ -9,4 +9,19 @@ db:
 db:
     type: 'mariadb:{{ runtime.db_version }}'
 {% endif %}
+{% if routing.cache|default('none') == 'varnish' %}
+
+# Cache in front of the frontend (routing.cache: varnish), Medium plan only.
+varnish:
+    type: varnish:7.3
+{% if op.new_file == true %}
+    size: M
+{% endif %}
+    relationships:
+        frontend: 'frontend:http'
+    configuration:
+        vcl: !include
+            type: string
+            path: config.vcl
+{% endif %}
 {% endif %}
