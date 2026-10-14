@@ -1,0 +1,6 @@
+# The Drupal backend is not the public site: it runs on the "backend."
+# subdomain and only the frontend domain, which serves its own robots.txt,
+# is indexed (see docs/routing.md). Backend responses also carry
+# X-Robots-Tag: noindex, nofollow.
+User-agent: *
+Disallow: /
