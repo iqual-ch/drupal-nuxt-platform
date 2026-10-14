@@ -27,10 +27,6 @@ web_environment:
 {% endif %}
     - NODE_ENV=development
     - NUXT_BACKEND_URL=http://localhost:8888
-    - NUXT_PUBLIC_DRUPAL_URL=https://backend.$DDEV_SITENAME.$DDEV_TLD
-    - DRUPAL_FRONTEND_URL=$DDEV_PRIMARY_URL
-    - DRUPAL_BACKEND_URL=https://backend.$DDEV_SITENAME.$DDEV_TLD
-    - DRUSH_OPTIONS_URI=https://backend.$DDEV_SITENAME.$DDEV_TLD
     - NUXT_REQUEST_HOST=$DDEV_SITENAME.$DDEV_TLD
     - DRUPAL_GRAPHQL_TOKEN=local-development
     - NUXT_MULTI_CACHE_API_AUTHORIZATION_TOKEN=local-development

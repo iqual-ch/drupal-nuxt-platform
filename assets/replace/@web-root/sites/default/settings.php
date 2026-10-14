@@ -833,13 +833,6 @@ $settings['reverse_proxy_addresses'] = [$_SERVER['REMOTE_ADDR'] ?? ''];
 $settings['reverse_proxy_trusted_headers'] = Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_FORWARDED;
 
 $settings['access_graphql.token'] = getenv('DRUPAL_GRAPHQL_TOKEN');
-
-// With the Drupal backend on its own domain (DRUPAL_FRONTEND_URL is set, see
-// docs/routing.md), public URLs that Drupal generates outside of a frontend
-// request must point at the frontend domain.
-if ($frontend_url = getenv('DRUPAL_FRONTEND_URL')) {
-  $config['simple_sitemap.settings']['base_url'] = rtrim($frontend_url, '/');
-}
 $config['tmgmt.translator.deepl_pro']['settings']['auth_key'] = getenv('DEEPL_AUTH_KEY');
 
 // Files that have no remaining usages will be deleted by cron
