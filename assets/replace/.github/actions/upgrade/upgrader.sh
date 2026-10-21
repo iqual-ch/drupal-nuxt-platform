@@ -45,6 +45,7 @@ fi
 APP_ROOT=${DDEV_COMPOSER_ROOT:-drupal}
 FRONTEND_ROOT=${FRONTEND_ROOT:-frontend}
 COMPOSER_JSON_FILE="${APP_ROOT}/composer.json"
+RSH_ROOT="${PWD}"
 
 if [ ! -f "${COMPOSER_JSON_FILE}" ]; then
   echo "composer.json file not found. Aborting."
@@ -57,6 +58,7 @@ fi
 
 if [[ -n "$RSH" && "$RSH" == "ddev" ]]; then
   echo "Using remote shell: ddev"
+  RSH_ROOT="/var/www/html"
 fi
 
 # Pretty print the command to be run, with proper quoting for arguments with spaces.
@@ -79,7 +81,7 @@ function rsh {
     # Make sure the arguments' value is quoted in a format that can be reused as input.
     COMMAND="${*@Q}" make cli
   elif [[ -n "$RSH" && "$RSH" == "ddev" ]]; then
-    ddev exec -- "${*@Q}"
+    ddev exec --dir "${RSH_ROOT}" -- "${*@Q}"
   else
     eval "${*@Q}"
   fi
@@ -243,7 +245,7 @@ for operation in "${OPERATIONS[@]}"; do
       rsh composer bump "${OPTIONS_ARRAY[@]}" "${DATA_ARRAY[@]}" -n -d "${APP_ROOT}"
       ;;
     "bun:update")
-      rsh bun update "${OPTIONS_ARRAY[@]}" --cwd "${FRONTEND_ROOT}" "${DATA_ARRAY[@]}"
+      rsh bun update "${OPTIONS_ARRAY[@]}" --cwd "${RSH_ROOT}/${FRONTEND_ROOT}" "${DATA_ARRAY[@]}"
       ;;
     "config")
       if [[ "${KEY}" =~ "extra."* ]] || [[ "${KEY}" =~ "repositories."* ]]; then
@@ -277,16 +279,7 @@ for operation in "${OPERATIONS[@]}"; do
       fi
       ;;
     "phpcbf")
-      if grep -q "drupal/coder" "$COMPOSER_JSON_FILE"; then
-        if [[ ${#DATA_ARRAY[@]} -eq 0 ]]; then
-          echo "No path defined. Auto-generating themes and module custom path."
-          # Build array from auto-generated paths
-          readarray -t DATA_ARRAY < <(git ls-tree -d -r $(git write-tree) --name-only | grep -E '(themes|modules)/custom/[^/]+$')
-        fi
-        rsh phpcbf "${OPTIONS_ARRAY[@]}" "${DATA_ARRAY[@]}" || true
-      else
-        echo "Warning: missing \"drupal/coder\" package for code beautifying"
-      fi
+      RSH_ROOT="${RSH_ROOT}/${APP_ROOT}" rsh phpcbf "${OPTIONS_ARRAY[@]}" "${DATA_ARRAY[@]}" || true
       ;;
     "updatedb")
       rsh drush updatedb "${OPTIONS_ARRAY[@]}" -y
