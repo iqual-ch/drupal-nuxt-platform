@@ -144,10 +144,8 @@ if ($platformsh->inRuntime()) {
     $config['purge_purger_http.settings.6e9bab7e94']['hostname'] = parse_url($primary_route['url'], PHP_URL_HOST);
   }
 
-  // The hosts the frontend is served on, so a request on "backend.D" pairs
-  // with the frontend "www.D" if only that is routed (see docs/routing.md).
-  // Varnish (routing.cache: varnish) only fronts the frontend, so its routes
-  // count too. A list set by the project wins.
+  // The frontend hosts (Varnish fronts the frontend), so Drupal pairs
+  // "backend.<domain>" with a www frontend (see docs/routing.md).
   if (!isset($settings['icms_frontend_hosts'])) {
     $settings['icms_frontend_hosts'] = [];
     foreach ($platformsh->getUpstreamRoutes() as $route) {

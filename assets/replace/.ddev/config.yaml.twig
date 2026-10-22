@@ -4,8 +4,7 @@ docroot: drupal/docroot
 php_version: "{{ runtime.php_version }}"
 webserver_type: nginx-fpm
 xdebug_enabled: false
-# The Drupal backend is served on its own hostname (see docs/routing.md). To
-# test a www frontend, add www.{{ name }} in .ddev/config.local.yaml.
+# The Drupal backend is served on its own hostname (see docs/routing.md).
 additional_hostnames:
     - backend.{{ name }}
 additional_fqdns: []

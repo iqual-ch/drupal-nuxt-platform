@@ -55,7 +55,7 @@ Notable variables:
 * `url` — live URL of the website.
 * `monorepo` — `true` only in the ICMS development monorepo; toggles workspace-specific behavior (e.g. `@workspace:*` frontend dependencies).
 * `routing.cache` — `none` (default) or `varnish`: optional Varnish cache in front of the frontend (Upsun Medium plan).
-* `routing.www` — `true` serves the frontend on `www.` with the bare domain redirecting there (new projects' `.platform/routes.yaml`).
+* `routing.www` — `true` serves the frontend on `www.` (new projects' `.platform/routes.yaml`).
 * `runtime.*` — PHP, database, Node.js, Elasticsearch and Memcached runtime settings.
 * `workflows.*` — feature flags for the shipped CI/CD workflows.
 * `ai.*` — feature flags for AI assistant integration (`AGENTS.md`, Claude, Copilot).

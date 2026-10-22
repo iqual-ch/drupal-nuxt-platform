@@ -1,11 +1,10 @@
 {% if deployment == "platform.sh" %}
 {% set frontend = routing.www|default(false) ? 'www.{default}' : '{default}' %}
-# The frontend serves the public site on {{ frontend }}; the Drupal backend
-# lives on the "backend." subdomain of the site domain {default} (see
-# docs/routing.md). Drupal's editorial entry points requested on the frontend
-# domain redirect there, every other Drupal path the frontend hands over
-# itself; public files, the sitemap and its XSL stay on the frontend domain and
-# are routed to Drupal directly.
+# The frontend serves the public site; the Drupal backend lives on
+# backend.{default} (see docs/routing.md). Drupal's editorial entry points
+# requested on the frontend domain redirect there, every other Drupal path the
+# frontend hands over itself; public files, the sitemap and its XSL stay on the
+# frontend domain and are routed to Drupal directly.
 "https://{{ frontend }}/":
     type: upstream
     upstream: "{{ routing.cache|default('none') == 'varnish' ? 'varnish:http' : 'frontend:http' }}"
@@ -70,7 +69,6 @@
           preload: true
 {% if routing.www|default(false) %}
 
-# The bare site domain redirects to the www frontend (routing.www).
 "https://{default}/":
     type: redirect
     to: "https://www.{default}/"

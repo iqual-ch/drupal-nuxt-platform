@@ -53,7 +53,6 @@ worktree_add() {
     "override_config: true" \
     "additional_hostnames:" \
     "    - backend.$NAME" \
-    "    # - www.$NAME   # test a www frontend, see docs/routing.md" \
     > "$WORKTREE_PATH/.ddev/config.local.yaml"
   for ENV_FILE in .ddev/.env .ddev/.env.* drupal/.env frontend/.env; do
     if [ -f "$ENV_FILE" ]; then

@@ -25,8 +25,7 @@ map $scheme $proxy_x_forwarded_ssl {
   https on;
 }
 
-# The site domain of a frontend host: the host without a leading "www.". Its
-# backend is "backend." + site domain (see docs/routing.md).
+# The host without a leading "www.", see docs/routing.md.
 map $host $site_domain {
   ~^www\.(.+)$ $1;
   default       $host;
@@ -312,8 +311,7 @@ server {
   large_client_header_buffers 4 32k;
   server_tokens off;
 
-  # default_server: also answers worktree hostnames and www.{{ name }}.ddev.site,
-  # once added to additional_hostnames to test a www frontend (docs/routing.md).
+  # www: to test a www frontend (docs/routing.md).
   server_name {{ name }}.ddev.site www.{{ name }}.ddev.site;
 
   root "/frontend-public";
