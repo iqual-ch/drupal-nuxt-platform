@@ -25,6 +25,13 @@ map $scheme $proxy_x_forwarded_ssl {
   https on;
 }
 
+# The site domain of a frontend host: the host without a leading "www.". Its
+# backend is "backend." + site domain (see docs/routing.md).
+map $host $site_domain {
+  ~^www\.(.+)$ $1;
+  default       $host;
+}
+
 map $status $status_title_de {
   400 'Ungültige Anfrage';
   401 'Nicht autorisiert';
@@ -305,7 +312,9 @@ server {
   large_client_header_buffers 4 32k;
   server_tokens off;
 
-  server_name {{ name }}.ddev.site;
+  # default_server: also answers worktree hostnames and www.{{ name }}.ddev.site,
+  # once added to additional_hostnames to test a www frontend (docs/routing.md).
+  server_name {{ name }}.ddev.site www.{{ name }}.ddev.site;
 
   root "/frontend-public";
 
@@ -413,7 +422,7 @@ server {
   # to the backend domain; every other Drupal path the frontend hands over
   # itself (see docs/routing.md).
   location ~ "^/([a-z]{2}/)?(admin|user)([/?]|$)" {
-    return 302 https://backend.$host$request_uri;
+    return 302 https://backend.$site_domain$request_uri;
   }
 
   # The sitemap's XSL must be same-origin (/sitemap.xml is handled above).

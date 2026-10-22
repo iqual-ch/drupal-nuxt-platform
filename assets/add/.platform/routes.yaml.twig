@@ -1,10 +1,12 @@
 {% if deployment == "platform.sh" %}
-# The frontend serves the public site; the Drupal backend lives on the
-# "backend." subdomain (see docs/routing.md). Drupal's editorial entry points
-# requested on the frontend domain redirect there, every other Drupal path the
-# frontend hands over itself; public files, the sitemap and its XSL stay on the
-# frontend domain and are routed to Drupal directly.
-"https://{default}/":
+{% set frontend = routing.www|default(false) ? 'www.{default}' : '{default}' %}
+# The frontend serves the public site on {{ frontend }}; the Drupal backend
+# lives on the "backend." subdomain of the site domain {default} (see
+# docs/routing.md). Drupal's editorial entry points requested on the frontend
+# domain redirect there, every other Drupal path the frontend hands over
+# itself; public files, the sitemap and its XSL stay on the frontend domain and
+# are routed to Drupal directly.
+"https://{{ frontend }}/":
     type: upstream
     upstream: "{{ routing.cache|default('none') == 'varnish' ? 'varnish:http' : 'frontend:http' }}"
     primary: true
@@ -22,7 +24,7 @@
                 to: "https://backend.{default}/$1$is_args$args"
                 regexp: true
 
-"https://{default}/sites/default/files":
+"https://{{ frontend }}/sites/default/files":
     type: upstream
     upstream: "drupal:http"
     cache:
@@ -33,7 +35,7 @@
           include_subdomains: true
           preload: true
 
-"https://{default}/sitemap.xml":
+"https://{{ frontend }}/sitemap.xml":
     type: upstream
     upstream: "drupal:http"
     cache:
@@ -44,7 +46,7 @@
           include_subdomains: true
           preload: true
 
-"https://{default}/sitemap_generator":
+"https://{{ frontend }}/sitemap_generator":
     type: upstream
     upstream: "drupal:http"
     cache:
@@ -66,9 +68,16 @@
           enabled: true
           include_subdomains: true
           preload: true
+{% if routing.www|default(false) %}
+
+# The bare site domain redirects to the www frontend (routing.www).
+"https://{default}/":
+    type: redirect
+    to: "https://www.{default}/"
+{% endif %}
 
 # Cloudflare Images proxy, if domain is not on CF.
-"https://{default}/cdn-cgi/image":
+"https://{{ frontend }}/cdn-cgi/image":
   type: proxy
   to: "https://iqual.cloud/cdn-cgi/image"
 {% endif %}
