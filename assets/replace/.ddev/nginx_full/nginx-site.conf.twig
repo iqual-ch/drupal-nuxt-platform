@@ -4,8 +4,6 @@
 
 # Base config copied from here:
 # https://github.com/lando/drupal/blob/main/recipes/drupal8/default.conf.tpl
-{% set languages = routing.languages|default(['de', 'fr', 'it', 'en']) %}
-{% set lang_alt = languages|join('|') %}
 
 map $http_x_forwarded_proto $proxy_x_forwarded_proto {
   default $http_x_forwarded_proto;
@@ -162,12 +160,11 @@ server {
   access_log /var/log/nginx/access.log;
   
 
-  set $lang "{{ languages|first }}";
-{% for language in languages|slice(1) %}
-  if ($request_uri ~ "^/{{ language }}/") {
-    set $lang "{{ language }}";
+  # Language of the SSI error page (frontend/public/error.html falls back to de).
+  set $lang "de";
+  if ($request_uri ~ "^/([a-z]{2})/") {
+    set $lang $1;
   }
-{% endfor %}
 
   location @errorpage {
     root "/var/www/html/frontend/public";
@@ -366,12 +363,11 @@ server {
   include /etc/nginx/monitoring.conf;
   
 
-  set $lang "{{ languages|first }}";
-{% for language in languages|slice(1) %}
-  if ($request_uri ~ "^/{{ language }}/") {
-    set $lang "{{ language }}";
+  # Language of the SSI error page (frontend/public/error.html falls back to de).
+  set $lang "de";
+  if ($request_uri ~ "^/([a-z]{2})/") {
+    set $lang $1;
   }
-{% endfor %}
 
   location @errorpage {
     root "/var/www/html/frontend/public";
@@ -383,16 +379,6 @@ server {
   
 
   
-
-  location = / {
-{% for language in languages|slice(1) %}
-    if ($http_accept_language ~* ^{{ language }}) {
-      return 302 https://$host/{{ language }};
-    }
-
-{% endfor %}
-    return 302 https://$host/{{ languages|first }};
-  }
 
   location @drupal {
     proxy_intercept_errors off;
@@ -461,7 +447,7 @@ server {
     try_files $uri $uri/ @frontend;
   }
 
-  location ~* "(favicon|logo-({{ lang_alt }}))" {
+  location ~* "(favicon|logo-[a-z]{2})" {
     expires 7d;
     add_header Cache-Control public;
     add_header Vary Accept-Encoding;

@@ -17,7 +17,6 @@ ddev composer project:init      # re-ask all questions, then apply
 | `monorepo` | no | `false` | `true` only in the ICMS development monorepo. Toggles workspace-specific behavior (`@workspace:*` bun dependencies, monorepo-only DDEV commands) and points the QA tooling (PHPUnit test suites, PHPCS, PHPStan, parallel-lint) at `packages/*` instead of `docroot/modules|themes/custom` (the `drupal-nuxt-platform` and `icms` asset/template packages are excluded from linting). |
 | `deployment` | no | `platform.sh` | `platform.sh` or `local-only`. With `local-only` all hosting-related files are omitted/removed. |
 | `drupal_spot` | yes* | `main-bvxea6i` | Machine name of the Single Point of Truth (SPOT) environment for database/config sync. |
-| `routing.languages` | no | `["de", "fr", "it", "en"]` | Site languages, asked as a multiple-choice question at project creation. Drives the root `Accept-Language` redirect (first entry = fallback target; with a single language `/` redirects unconditionally to it). |
 | `routing.cache` | no | `none` | `none` or `varnish`: a Varnish cache in front of the Nuxt frontend only (see "Optional Varnish cache" in the ICMS `docs/routing.md`). Needs the Upsun **Medium** plan. `varnish` renders `.platform/config.vcl` (replace mode; deleted with `none`, except with `monorepo`, which always renders it for its tests) and the `varnish` service in `.platform/services.yaml` (merge mode: switching back to `none` doesn't remove it). New projects also get `upstream: "varnish:http"` on the frontend route of `.platform/routes.yaml` (add mode: existing projects change it by hand). Nuxt and Drupal detect Varnish from that route. Purges are only accepted from the outbound IPs of `platformsh_config.region` (known: `ch-1`). |
 | `platformsh_config.region` | no | `ch-1` | Platform.sh region. |
 | `platformsh_config.project_id` | no | `""` | Platform.sh project ID (drush site aliases). |
@@ -44,8 +43,7 @@ ddev composer project:init      # re-ask all questions, then apply
 > Since `iqual/project-scaffold` 2.0, a **list** value in the project's `composer.json`
 > replaces a package default wholesale (maps still merge recursively, project wins per
 > key), so a project can shrink or empty a list. Defaults for list variables live in the
-> templates (`|default([...])`) and, where asked interactively, in `questions.json` —
-> like `routing.languages` does.
+> templates (`|default([...])`) and, where asked interactively, in `questions.json`.
 
 ## Asset modes
 
