@@ -225,19 +225,31 @@ mono-test-varnish: ## Validate the Varnish VCL (routing.cache: varnish)
 ## Linting
 lint: drupal-validate drupal-analysis drupal-lint frontend-lint ## Lint project
 
+drupal-code: ## List the custom PHP code (git-tracked, relative to the app root)
+	@git -C drupal ls-tree -d --name-only $$(git write-tree) {% if monorepo %}packages/ | grep -vE '/(drupal-nuxt-platform|icms)$$'{% else %}docroot/modules/custom/ docroot/themes/custom/{% endif %}
+
 drupal-validate: ## Validate Drupal
 	@echo -e " $(MSG_INFO) Validating composer lock file"
 	ddev composer validate
 
 drupal-analysis: ## Static analysis of Drupal
 	@echo -e " $(MSG_INFO) Static analysis Drupal"
-	ddev phpstan
+	DRUPAL_CODE="$$($(MAKE) -s drupal-code)"
+	if [ -z "$$DRUPAL_CODE" ]; then
+		echo -e " $(MSG_WARNING) No custom PHP code to analyse."
+		exit 0
+	fi
+	ddev phpstan analyse $$DRUPAL_CODE
 
 drupal-lint: ## Lint Drupal
 	@echo -e " $(MSG_INFO) Linting Drupal"
-	REPO_CODE="$$(git ls-tree -d -r $$(git write-tree) --name-only | grep -E '{% if monorepo %}^drupal/packages/[^/]+$$' | grep -vE '/(drupal-nuxt-platform|icms)$${% else %}(themes|modules)/custom/[^/]+$${% endif %}' | paste -s -)"
-	ddev parallel-lint $${REPO_CODE//drupal\//} -e php,module,theme,inc,install,profile $(PARALINT_FLAGS)
-	ddev phpcs
+	DRUPAL_CODE="$$($(MAKE) -s drupal-code)"
+	if [ -z "$$DRUPAL_CODE" ]; then
+		echo -e " $(MSG_WARNING) No custom PHP code to lint."
+		exit 0
+	fi
+	ddev parallel-lint $$DRUPAL_CODE -e php,module,theme,inc,install,profile $(PARALINT_FLAGS)
+	ddev phpcs $$DRUPAL_CODE
 
 frontend-lint: ## Lint Frontend
 	@echo -e " $(MSG_INFO) Linting Frontend"
@@ -250,7 +262,12 @@ beauty: drupal-beauty frontend-beauty ## Beautify & fix code in project
 
 drupal-beauty: ## Beautify & fix Drupal
 	@echo -e " $(MSG_INFO) Beautify & fixing Drupal"
-	ddev phpcbf
+	DRUPAL_CODE="$$($(MAKE) -s drupal-code)"
+	if [ -z "$$DRUPAL_CODE" ]; then
+		echo -e " $(MSG_WARNING) No custom PHP code to fix."
+		exit 0
+	fi
+	ddev phpcbf $$DRUPAL_CODE
 
 frontend-beauty: ## Beautify & fix Frontend
 	@echo -e " $(MSG_INFO) Beautify & fixing Frontend"

@@ -33,10 +33,12 @@ jobs:
       shell: bash
       run: |
         echo "::add-matcher::${{ runner.tool_cache }}/php.json"
-{% endverbatim %}{% if monorepo %}        echo "REPO_CODE=$(git ls-tree -d -r $(git write-tree) --name-only | grep -E '^drupal/packages/[^/]+$' | grep -vE '/(drupal-nuxt-platform|icms)$' | paste -s -)" >> $GITHUB_ENV{% else %}        echo "REPO_CODE=$(git ls-tree -d -r $(git write-tree) --name-only | grep -E '(themes|modules)/custom/[^/]+$' | paste -s -)" >> $GITHUB_ENV{% endif %}{% verbatim %}
+        # testing.yml skips this workflow when there is no custom PHP code.
+        echo "REPO_CODE=$(make -s drupal-code | xargs)" >> $GITHUB_ENV
 
     - name: "Run PHP parallel lint"
       shell: bash
+      working-directory: ./drupal
       run: |
         parallel-lint ${REPO_CODE} -e php,module,theme,inc,install,profile --no-progress
 
@@ -57,7 +59,7 @@ jobs:
           --runtime-set ignore_warnings_on_exit 1 \
           --report=checkstyle \
           -q \
-          ${REPO_CODE//drupal\//} \
+          ${REPO_CODE} \
           | cs2pr --graceful-warnings
 
 {% endverbatim -%}

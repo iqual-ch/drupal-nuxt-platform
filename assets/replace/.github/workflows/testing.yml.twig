@@ -32,12 +32,22 @@ jobs:
     outputs:
       browser_testing: ${{ steps.phpunit-tests.outputs.browser_testing }}
       database_testing: ${{ steps.phpunit-tests.outputs.database_testing }}
+      php_code: ${{ steps.php-code.outputs.php_code }}
 {% endverbatim %}{% if monorepo %}{% verbatim %}      bundles: ${{ steps.bundles.outputs.bundles }}
 {% endverbatim %}{% endif %}{% verbatim %}
 
     steps:
     - name: Checkout
       uses: actions/checkout@v6
+
+    # Before the install, so that the lint job runs even if a later step fails.
+    - name: Detect custom PHP code
+      id: php-code
+      shell: bash
+      run: |
+        if [ -n "$(make -s drupal-code)" ]; then
+          echo "php_code=true" >> $GITHUB_OUTPUT
+        fi
 
     - name: Install Drupal locally
       uses: ./.github/actions/install-local
@@ -124,6 +134,8 @@ jobs:
 
   lint:
     name: "PHPCS"
+    needs: [build]
+    if: ${{ !cancelled() && needs.build.outputs.php_code == 'true' }}
     uses: ./.github/workflows/phpcs.yml
     secrets: inherit
 
