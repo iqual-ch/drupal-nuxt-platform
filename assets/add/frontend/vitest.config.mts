@@ -1,4 +1,4 @@
-import { defineIcmsVitestConfig } from "@iqual/nuxt-icms-dev/vitest";
+import { defineIcmsVitestConfig } from '@iqual/nuxt-icms-dev/vitest'
 
 // Project-owned wrapper around the shared ICMS Vitest config (created once by
 // iqual/drupal-nuxt-platform, never overwritten). `bun run test:ci` runs the
@@ -8,4 +8,4 @@ import { defineIcmsVitestConfig } from "@iqual/nuxt-icms-dev/vitest";
 // deliberately deviates from:
 //
 //   test: { exclude: ['node_modules/@iqual/nuxt-icms/__tests__/pages.spec.ts'] },
-export default defineIcmsVitestConfig({});
+export default defineIcmsVitestConfig({})
