@@ -1,0 +1,45 @@
+#!/bin/bash
+
+## Description: Run drush with "en" stored as the site default language, so config saves don't write translations into the base config.
+## Usage: drush-en [flags] [args]
+## Example: "ddev drush-en updb -y" or "ddev drush-en recipe ../recipes/icms_bundle_news"
+## ExecRaw: true
+## MutagenSync: true
+## HostWorkingDir: false
+
+# Drush loads config entities with the stored default language's config
+# translation applied, and update hooks and recipes that save them write it into
+# the base config (ICMS-839). When a module is installed, locale also relabels
+# shipped "en" config to a non-English default language and writes that
+# language's translations into it. With "en" stored, neither happens, unless
+# English is translatable. The original default language is restored when drush
+# ends, also when it fails; if the restore fails, the call fails, so that
+# "make update" stops before "drush cex". Without the English language,
+# the switch is skipped: Drupal would run with a default language that doesn't
+# exist, and entities created meanwhile would be stored in it.
+
+cd /var/www/html/drupal || exit 1
+
+if ! DEFAULT_LANGCODE=$(drush config:get system.site default_langcode --format=list 2>/dev/null) || [ -z "$DEFAULT_LANGCODE" ]; then
+  echo "drush-en: Could not read system.site:default_langcode, running drush without switching the default language." >&2
+elif [ "$DEFAULT_LANGCODE" != "en" ]; then
+  if [ "$(drush config:get language.entity.en id --format=list 2>/dev/null)" != "en" ]; then
+    echo "drush-en: The site has no English language (language.entity.en), so the default language stays \"$DEFAULT_LANGCODE\" and translations can leak into the base config. Check the exported config for strings in another language." >&2
+  elif [ "$(drush config:get locale.settings translate_english --format=list 2>/dev/null)" = "1" ]; then
+    echo "drush-en: English is translatable (locale.settings:translate_english), so translations can leak into the base config. Check the exported config for strings in another language." >&2
+  else
+    restore_default_langcode() {
+      local status=$?
+      if ! drush config:set system.site default_langcode "$DEFAULT_LANGCODE" -y >&2; then
+        echo "drush-en: Could not restore the default language, run: ddev drush config:set system.site default_langcode $DEFAULT_LANGCODE -y" >&2
+        [ "$status" -ne 0 ] || status=1
+      fi
+      exit "$status"
+    }
+    trap restore_default_langcode EXIT
+    echo "drush-en: Storing \"en\" as the default language instead of \"$DEFAULT_LANGCODE\" while drush runs." >&2
+    drush config:set system.site default_langcode en -y >&2 || exit
+  fi
+fi
+
+drush "$@"

@@ -297,20 +297,20 @@ bundle-%: ## Install ICMS bundle
 
 drupal-bundle-%: ## Install Drupal bundle
 	@echo -e " $(MSG_INFO) Installing Drupal bundle \"$*\""
-	DRUPAL_DEFAULT_LANGCODE=$$(ddev drush config:get system.site default_langcode --format=list)
-	ddev drush config:set system.site default_langcode en -y
 	COMPOSER_BUNDLES="iqual/icms_bundle_$*"
 	if [ -n "$$DEFAULT_CONTENT" ] && ddev exec "composer search iqual/icms_bundle_$*_content" | grep "iqual/icms_bundle_$*_content" > /dev/null; then
 		COMPOSER_BUNDLES="$$COMPOSER_BUNDLES iqual/icms_bundle_$*_content"
 		DEFAULT_CONTENT_RECIPE=true
 	fi
 	ddev composer require $$COMPOSER_BUNDLES
-	ddev drush updb -y
-	ddev drush recipe ../recipes/icms_bundle_$*
+	# drush-en stores "en" as the default language while drush runs (ICMS-839).
+	ddev drush-en updb -y
+	ddev drush-en recipe ../recipes/icms_bundle_$*
+	# The content recipe adds no config: it runs with the site's own default
+	# language, which content without an available language falls back to.
 	if [ -n "$$DEFAULT_CONTENT_RECIPE" ]; then
 		ddev drush recipe ../recipes/icms_bundle_$*_content
 	fi
-	ddev drush config:set system.site default_langcode $$DRUPAL_DEFAULT_LANGCODE -y
 	ddev drush cr
 
 frontend-bundle-%: ## Install Frontend bundle
@@ -351,9 +351,15 @@ drupal-update: ## Update Drupal
 	fi
 {% endif %}	ddev composer update $(COMPOSER_FLAGS)
 	ddev drush cr
-	ddev drush updb $(DRUSH_FLAGS)
+	# A new make process, so the Makefile the update just scaffolded runs it.
+	$(MAKE) drupal-updb
 	ddev drush cex $(DRUSH_FLAGS)
 	ddev drush cr
+
+drupal-updb: ## Run the Drupal database updates
+	@echo -e " $(MSG_INFO) Running Drupal database updates"
+	# drush-en stores "en" as the default language while drush runs (ICMS-839).
+	ddev drush-en updb $(DRUSH_FLAGS)
 
 frontend-update: ## Update frontend
 	@echo -e " $(MSG_INFO) Updating Frontend"
