@@ -103,7 +103,13 @@ drupal-db: ## Import drupal database
 	fi
 	if [ -z "$$(ddev drush status --fields=bootstrap)" ] || [ "$(FORCE)" = "true" ]; then
 		ddev drush cr || true
+		# Fail before touching the local database when SPOT is unreachable.
+		ddev drush @spot sql:query "SELECT 1" $(DRUSH_FLAGS) > /dev/null
+		# sql:sync only replaces the tables in the dump; drop local-only tables first.
+		ddev drush sql:drop --yes $(DRUSH_FLAGS)
 		ddev drush sql:sync @spot @self --yes $(DRUSH_FLAGS)
+		# Clear the cache the first cr re-warmed from the old database.
+		ddev drush cr || true
 	else
 		echo -e " $(MSG_WARNING) Existing database detected. Skipping database import. Use \"FORCE=true\" to force import."
 	fi
