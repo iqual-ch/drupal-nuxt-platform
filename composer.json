@@ -11,7 +11,7 @@
         }
     ],
     "require": {
-        "iqual/project-scaffold": "^2.0"
+        "iqual/project-scaffold": "~2.0.0-alpha1"
     },
     "archive": {
         "exclude": [
